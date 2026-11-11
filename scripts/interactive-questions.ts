@@ -1,5 +1,6 @@
+import type { InteractiveExercise } from '../src/types.ts';
 // Authored alternatives using interaction instead of free-text tokens.
-export const interactiveQuestions = new Map([
+export const interactiveQuestions = new Map<string, InteractiveExercise>([
   ['p13-b', {
     kind:'order', prompt:'把构建步骤排成顺序。从 .c 源文件开始，到得到可执行程序为止。',
     options:['链接目标文件与库','汇编成目标文件','预处理头文件和宏','编译成汇编文本'], answer:[2,3,1,0],

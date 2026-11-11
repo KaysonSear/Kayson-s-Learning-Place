@@ -1,5 +1,6 @@
-import {baselineQuestions} from './questions-b-base-a.mjs';
-import {baselineExtra} from './questions-b-extra-a.mjs';
+import type { AuthoredExercise, Point, Question } from '../src/types.ts';
+import {baselineQuestions} from './questions-b-base-a.ts';
+import {baselineExtra} from './questions-b-extra-a.ts';
 /* Chapters 11–19. Every B item below is an authored transfer scenario.
  * A items are separately authored baseline scenarios, never compiled C.
  * Multiple accepted short answers are separated by ;; in this authoring table.
@@ -143,8 +144,8 @@ const authored = String.raw`
 623¦只测试随机非空输入是否足以覆盖空数组、重复值和未命中边界？填“足够”或“不足够”。¦不足够
 `;
 
-const scenarios = new Map();
-function register(table) {
+const scenarios = new Map<number, {prompt: string; answer: string[]}>();
+function register(table: string) {
   for (const line of table.trim().split('\n')) {
     if (!line.trim()) continue;
     const fields=line.split('¦');
@@ -608,11 +609,11 @@ register(String.raw`
 1064¦ELF 格式文件是否只能是最终可执行程序，不能是 .o 或共享对象？填“是”或“否”。¦否
 `);
 
-function cleanRule(markdown) {
+function cleanRule(markdown: string) {
   return markdown.split(/^#{2,4} /m)[0].replace(/^####[^\n]*\n/gm,'').replace(/```[\s\S]*?```/g,' ').replace(/\[\[#([^|\]]+)(?:\|([^\]]+))?\]\]/g,(_,a,b)=>b||a).replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/^> ?/gm,'').replace(/`([^`]+)`|\*\*([^*]+)\*\*/g,(_,code,bold)=>code??bold).replace(/\s+/g,' ').trim();
 }
-function asExercise(entry) {
-  if(entry.kind==='choice') return entry;
+function asExercise(entry: AuthoredExercise | {prompt: string; answer: string[]}): AuthoredExercise {
+  if('kind' in entry && entry.kind==='choice') return entry;
   const answers=Array.isArray(entry.answer)?entry.answer:[entry.answer];
   const pairs=[...entry.prompt.matchAll(/[“「]([^”」]+)[”」](?:或|还是)[“「]([^”」]+)[”」]/g)];
   const pair=pairs.find(m=>answers.includes(m[1])||answers.includes(m[2]));
@@ -620,15 +621,15 @@ function asExercise(entry) {
     const options=[pair[1],pair[2]];
     return {...entry,kind:'choice',options,answer:options.findIndex(x=>answers.includes(x))};
   }
-  return {kind:'input',...entry};
+  return {...entry,kind:'input'};
 }
-export function createQuestions(points) {
+export function createQuestions(points: Pick<Point, 'id' | 'chapter' | 'title' | 'markdown'>[]): Question[] {
   return points.filter(p=>p.chapter>=11).flatMap(point=>{
     const authoredB=scenarios.get(point.id);
     if(!authoredB) throw new Error(`Missing authored transfer exercise for point ${point.id}`);
     const entry=baselineQuestions.get(point.id)||baselineExtra.get(point.id);
     if(!entry) throw new Error(`Missing authored baseline exercise for point ${point.id}`);
-    const a={id:`p${point.id}-a`,pointId:point.id,stage:'a',...asExercise(entry),explanation:cleanRule(point.markdown)||point.title,hint:'先核对题设条件与类型，再按规则处理这个具体情况。'};
+    const a: Question={id:`p${point.id}-a`,pointId:point.id,stage:'a',...asExercise(entry),explanation:cleanRule(point.markdown)||point.title,hint:'先核对题设条件与类型，再按规则处理这个具体情况。'};
     return [a,{id:`p${point.id}-b`,pointId:point.id,stage:'b',...asExercise(authoredB),explanation:cleanRule(point.markdown)||point.title,hint:'把题设的条件代入规则；先核对类型、有效范围和操作前提，再填写结果。'}];
   });
 }

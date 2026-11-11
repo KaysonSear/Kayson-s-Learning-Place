@@ -19,25 +19,27 @@
 
 ## 开发和重建
 
-需要现代 Node.js。开发依赖只在构建和测试中使用，最终 HTML 不需要这些依赖。
+使用 Node.js 24 LTS 和 npm。界面使用 React 19.3.1，项目源码和工具使用 TypeScript 7.0.2，Vite 8.3.8 负责构建。离线成品只需要浏览器。
 
 ```powershell
 npm ci
+npm run typecheck
 npm run build
 npm test
 npm run check
-node scripts/browser-check.mjs
+npx playwright install webkit
+npm run check:browser
 ```
 
-浏览器检查使用本机 Chrome 和 Playwright；以 `file://` 直接打开成品并断网测试。输出的 JSON 报告及桌面、手机截图位于 `tests/`。手机测试为 Chromium 触屏仿真，不等同于物理安卓实机测试。
+`npm run dev` 启动本机开发预览。浏览器检查使用本机 Chrome 断网打开离线成品，并通过 HTTP 在 Chrome 和 Playwright WebKit 上检查 360px、768px 和桌面宽度。测试输出的离线报告及截图位于 `tests/`。手机测试使用触屏仿真。
 
 | 路径 | 维护内容 |
 | --- | --- |
 | `content/` | 原始 Markdown、挖空题和干扰项 |
 | `scripts/` | 三题练习题库、内容转换、构建与检查 |
-| `src/app.js`、`src/shell.html`、`src/style.css` | 页面和交互 |
-| `src/engine.js`、`src/drill.js`、`src/labs.js` | 复习、刷题和实验规则 |
-| `src/progress.js`、`src/storage.js` | 备份校验与迁移、浏览器本地存储 |
+| `src/App.tsx`、各页面组件、`src/style.css` | 页面和交互 |
+| `src/engine.ts`、`src/drill.ts`、`src/labs.ts` | 复习、刷题和实验规则 |
+| `src/progress.ts`、`src/storage.ts` | 备份校验与迁移、浏览器本地存储 |
 | `tests/` | 回归测试和题目复核记录 |
 
 默认构建使用仓库内的 Markdown，也可通过 `C_LAB_SOURCE` 指定另一份原文。构建生成 `content/library.json`、单文件离线版 `dist/C-Lab.html`，以及供 HTTP 服务使用的 `dist-cloud/`，其中 HTML、CSS、JavaScript 和题库 JSON 各有一个文件。两个版本目前均使用浏览器本地存储。个人进度 JSON 单独保管。

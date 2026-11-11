@@ -1,13 +1,14 @@
+import type { Library } from '../src/types.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
-import {courseSource} from './course-source.mjs';
+import {courseSource} from './course-source.ts';
 import crypto from 'node:crypto';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const D=JSON.parse(fs.readFileSync(path.join(root,'content/library.json'),'utf8'));
+const D: Library=JSON.parse(fs.readFileSync(path.join(root,'content/library.json'),'utf8'));
 const html=fs.readFileSync(path.join(root,'dist/C-Lab.html'),'utf8');
-const ids=new Set(),prompts=new Map(),duplicates=[];
+const ids=new Set(),prompts=new Map(),duplicates: [string,string][]=[];
 assert.equal(D.points.length,1064);assert.equal(D.chapters.length,19);assert.equal(D.clusters.length,118);assert.equal(D.questions.length,2128);assert.equal(D.counts.diagrams,190);
 assert.equal(D.drillQuestions.length, D.points.length);
 assert.equal(new Set(D.drillQuestions.map(q => q.prompt)).size, D.points.length);

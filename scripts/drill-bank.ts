@@ -1,8 +1,9 @@
+import type { DrillQuestion, Point } from '../src/types.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 
-function excerpt(markdown) {
+function excerpt(markdown: string) {
   return markdown
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/\[\[#([^|\]]+)(?:\|([^\]]+))?\]\]/g, (_, name, label) => label || name)
@@ -13,7 +14,7 @@ function excerpt(markdown) {
     .trim();
 }
 
-function shuffledOptions(options, id) {
+function shuffledOptions(options: string[], id: number) {
   const hash = createHash('sha256').update(`c-lab-drill-v1:${id}`).digest();
   const shuffled = [...options];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -23,9 +24,9 @@ function shuffledOptions(options, id) {
   return shuffled;
 }
 
-function loadDistractors(directory, range) {
+function loadDistractors(directory: string, range: string) {
   const text = fs.readFileSync(path.join(directory, `drill-options-${range}.txt`), 'utf8');
-  const result = new Map();
+  const result = new Map<string, string[]>();
   for (const row of text.trim().split(/\r?\n/)) {
     const [id, ...options] = row.split('§').map(field => field.trim());
     if (result.has(id) || !options.length || options.some(option => !option)) {
@@ -36,9 +37,9 @@ function loadDistractors(directory, range) {
   return result;
 }
 
-export function loadDrillQuestions(root, points) {
+export function loadDrillQuestions(root: string, points: Point[]): DrillQuestion[] {
   const source = new Map(points.map(point => [point.id, point]));
-  const bank = new Map();
+  const bank = new Map<number, DrillQuestion>();
   const prompts = new Set();
   const ranges = ['01-03', '04-07', '08-10', '11-13', '14-16', '17-19'];
   const directory = path.join(root, 'content');

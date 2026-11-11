@@ -1,29 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import vm from 'node:vm';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { catalog, models } from '../src/labs.ts';
 
-const source = fs.readFileSync(new URL('../src/labs.js', import.meta.url), 'utf8');
-const context = {window: {}};
-vm.runInNewContext(source, context);
-const {catalog, models} = context.window.CLabLabs;
-const start = id => ({model: models[id], state: models[id].initial()});
-const act = (lab, action, value) => lab.model.act(lab.state, action, value === undefined ? undefined : String(value));
+const source = fs.readFileSync(new URL('../src/labs.ts', import.meta.url), 'utf8');
+const start = <Id extends keyof typeof models>(id: Id) => models[id].start() as ReturnType<(typeof models)[Id]['start']>;
+const act = (lab: {act: (action: string, value?: string) => {message:string; success:boolean}}, action: string, value?: string | number) =>
+  lab.act(action, value === undefined ? undefined : String(value));
 
 test('16 finite-state laboratories cover all 19 chapters without runtime network or eval', () => {
   assert.equal(catalog.length, 16);
   assert.deepEqual([...new Set(catalog.flatMap(x => Array.from(x.chapters)))].sort((a, b) => a - b), Array.from({length: 19}, (_, i) => i + 1));
   assert.doesNotMatch(source, /\beval\s*\(|new\s+Function|\bfetch\s*\(|https?:\/\//);
-  for (const {id} of catalog) {
-    const lab = start(id);
-    assert.ok(lab.model.view(lab.state).length > 100, id);
-    assert.ok(lab.model.goal.length > 10, id);
-    assert.ok(lab.model.assumptions.length > 10, id);
+  for (const model of catalog) {
+    const lab = model.start();
+    assert.ok(renderToStaticMarkup(createElement("div", null, lab.view())).length > 100, model.id);
+    assert.ok(model.goal.length > 10, model.id);
+    assert.ok(model.assumptions.length > 10, model.id);
   }
 });
 
 test('build stages reject wrong transitions; unresolved definition is a link issue', () => {
   const lab = start('build');
+  assert.equal(act(lab, 'stage').success, false);
+  assert.equal(lab.state.stage, 0);
   assert.equal(act(lab, 'stage', 3).success, false);
   assert.equal(lab.state.stage, 0);
   for (let i = 0; i < 4; i++) act(lab, 'stage', i);

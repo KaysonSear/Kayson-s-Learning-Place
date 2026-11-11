@@ -1,19 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import vm from 'node:vm';
-
-const context={};
-vm.runInNewContext(fs.readFileSync(new URL('../src/engine.js',import.meta.url),'utf8'),context);
-const E=context.CLabEngine;
+import * as E from '../src/engine.ts';
+import type { Exercise, Grade, Progress, QuestionRef, Session, Stage } from '../src/types.ts';
 const T=new Date(2026,10,6,10,0,0).getTime();
 const points=[1,2,3,4,5,6,7,38,215,765].map(id=>({id,chapter:id<10?1:id===38?2:id===215?7:15}));
-const questions=points.flatMap(p=>['a','b'].map(stage=>({id:`p${p.id}-${stage}`,pointId:p.id,stage,kind:'choice',options:['正确','错误'],answer:0})));
-const q=(id,stage='a')=>questions.find(x=>x.id===`p${id}-${stage}`);
-const correct=(state,id=1,stage='a',time=T,extra={})=>E.record(state,q(id,stage),{correct:true,...extra},time);
-const clone=v=>JSON.parse(JSON.stringify(v));
-const validate=v=>E.validateImport(v,points.map(p=>p.id),questions.map(q=>q.id));
-function session(queue=['p1-a','p2-a','p3-a']){
+const questions=points.flatMap(p=>(['a','b'] as const).map((stage): QuestionRef & Exercise=>({id:`p${p.id}-${stage}`,pointId:p.id,stage,kind:'choice',options:['正确','错误'],answer:0})));
+const q=(id: number,stage: Stage='a')=>questions.find(x=>x.id===`p${id}-${stage}`)!;
+const correct=(state: Progress,id=1,stage: Stage='a',time=T,extra: Partial<Grade>={})=>E.record(state,q(id,stage),{correct:true,...extra},time);
+const clone=<T>(v: T): T=>structuredClone(v);
+const validate=(v: unknown)=>E.validateImport(v,points.map(p=>p.id),questions.map(q=>q.id));
+function session(queue=['p1-a','p2-a','p3-a']): Session {
   return {queue,index:0,answers:[],current:{value:null,assisted:false,submitted:false,everWrong:false},scope:{},started:T};
 }
 
@@ -148,10 +144,10 @@ test('progress round trip retains migration, current answer, scope and completed
 test('submitted and completed sessions survive export and import',()=>{
   const state=E.fresh();state.session=session(['p1-a']);
   state.session.current={value:0,assisted:false,submitted:true,everWrong:false,correct:true,skipped:false};
-  assert.equal(validate(clone(state)).session.current.correct,true);
+  assert.equal(validate(clone(state)).session!.current.correct,true);
   state.session.index=1;state.session.answers=[{questionId:'p1-a',pointId:1,correct:true,assisted:false,skipped:false}];
   state.session.current={value:null,assisted:false,submitted:false,everWrong:false};
-  assert.equal(validate(clone(state)).session.answers.length,1);
+  assert.equal(validate(clone(state)).session!.answers.length,1);
 });
 
 test('malformed top-level and nested progress is rejected rather than reaching the UI',()=>{
@@ -166,14 +162,14 @@ test('malformed top-level and nested progress is rejected rather than reaching t
 
 test('malformed session arrays, current flags, answers and scope cannot crash quiz or finish views',()=>{
   const seed=E.fresh();seed.session=session();
-  const mutations=[
+  const mutations: ((session: Record<string, unknown> & {current: Record<string, unknown> | null | string | unknown[]}) => unknown)[]=[
     s=>s.current=null,
     s=>s.current=[],
     s=>s.current='bad',
-    s=>delete s.current.value,
-    s=>s.current.value={nested:'answer'},
-    s=>s.current.submitted='true',
-    s=>s.current={...s.current,submitted:true},
+    s=>delete (s.current as Record<string, unknown>).value,
+    s=>(s.current as Record<string, unknown>).value={nested:'answer'},
+    s=>(s.current as Record<string, unknown>).submitted='true',
+    s=>s.current={...s.current as Record<string, unknown>,submitted:true},
     s=>s.answers=null,
     s=>s.answers=[null],
     s=>s.index=1,
@@ -183,13 +179,13 @@ test('malformed session arrays, current flags, answers and scope cannot crash qu
     s=>s.scope={pointId:999},
     s=>s.started=-1
   ];
-  for(const mutate of mutations){const raw=clone(seed);mutate(raw.session);assert.throws(()=>validate(raw));}
+  for(const mutate of mutations){const raw=clone(seed);mutate(raw.session as unknown as Parameters<typeof mutate>[0]);assert.throws(()=>validate(raw));}
 });
 
 test('an imported hint or wrong-attempt flag cannot lose its assisted status',()=>{
   const state=E.fresh();state.session=session();
   state.session.current={...state.session.current,showHint:true};
-  assert.equal(validate(clone(state)).session.current.assisted,true);
+  assert.equal(validate(clone(state)).session!.current.assisted,true);
   state.session.current={...state.session.current,showHint:false,everWrong:true};
-  assert.equal(validate(clone(state)).session.current.assisted,true);
+  assert.equal(validate(clone(state)).session!.current.assisted,true);
 });
