@@ -1,0 +1,16 @@
+{
+  "name": "c-micro-lab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "devDependencies": {
+    "markdown-it": "^14.1.0",
+    "katex": "^0.16.22",
+    "@playwright/test": "^1.56.1"
+  }
+}

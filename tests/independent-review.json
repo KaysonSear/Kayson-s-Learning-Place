@@ -1,0 +1,12 @@
+{
+  "reviewedRanges": [
+    {"points": [1, 487], "stages": ["a", "b"], "method": "Independent prompt and answer read-through, with closer checks on formatted I/O, pointers, and short-answer inputs."},
+    {"points": [488, 1064], "stages": ["a", "b"], "method": "Independent prompt and answer read-through; checked model assumptions and selected numeric and interface cases."}
+  ],
+  "changes": [
+    "Made shuffled exercises standalone and added explicit implementation, locale, stream and bounds conditions where needed.",
+    "Preserved C operators when converting source notes to feedback text.",
+    "Added code-ordering, array parameter matching and overlap-repair interactions; exercised the first two in the offline browser."
+  ],
+  "limits": "This reviews the questions against the source and checks targeted C23 edge cases. It is not an independent certification of every rule in the source Markdown."
+}

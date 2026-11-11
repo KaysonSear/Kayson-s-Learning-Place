@@ -1,0 +1,13 @@
+node_modules/
+.playwright-cli/
+/dist/
+/dist-cloud/
+/content/library.json
+/tests/browser-report.json
+/tests/content-report.json
+/tests/*-desktop.png
+/tests/*-mobile.png
+.wrangler/
+.dev.vars*
+.env*
+C-Lab-progress-*.json

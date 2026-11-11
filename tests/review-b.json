@@ -1,0 +1,29 @@
+{
+  "range": [488, 1064],
+  "pointCount": 577,
+  "exerciseCount": 1154,
+  "authorship": {
+    "baseline": "Individually authored concrete rule, code, or boundary scenarios. A488–833: offline_architecture; A834–1064: learning_design.",
+    "transfer": "Individually authored per-point transfer scenarios B488–1064: offline_architecture.",
+    "explanations": "Deterministic cleaned excerpts from the matching original knowledge point; this is source evidence, not independent expert validation.",
+    "generatedClozes": 0
+  },
+  "reviewedRanges": {
+    "authorReview": [[488, 1064]],
+    "independentTransferReview": [[488, 1064]],
+    "independentBaselineReview": [[488, 615], [616, 1064]]
+  },
+  "verification": [
+    "Complete two-item coverage for every integer point ID488–1064, unique question IDs and valid answer schemas.",
+    "A and B prompts differ and no item depends on a previous shuffled question.",
+    "Finite-width bit examples, recursive numeric examples, file-count examples and macro expansions checked against independent small mathematical models.",
+    "Input synonyms and alternative hexadecimal case are explicitly accepted where authored. Quoted two-option tasks become touch-friendly choice items without changing their meaning.",
+    "Final review clarified lower-bound indexing, positive odd-sum inputs, realloc size, binary-stream positions, character classification and implementation assumptions. Selected tasks use interactive code ordering."
+  ],
+  "limitations": [
+    "These assessments consolidate the supplied C23 notes; they are not an independent audit of every language-standard assertion in those notes.",
+    "Behavior categories, including signed shift and narrowing statements, follow the source's explicit C23 wording.",
+    "Some small concepts naturally admit closely related baseline/transfer boundary judgments; large algorithm/program topics use different subtasks rather than a full arbitrary-code compiler.",
+    "Free text accepts listed answers plus the application engine's normalization, not arbitrary equivalent prose or all valid C spellings."
+  ]
+}
