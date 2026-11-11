@@ -1,3 +1,5 @@
+import type { Point, Question } from '../src/types.ts';
+
 // Individually authored scenarios for points 1–487; shared rendering does not generate question semantics.
 const rows = String.raw`
 1§普通宿主环境中，运行库完成准备后调用哪个函数进入程序主要逻辑？§main§嵌入式独立环境没有 main，能仅据此判定它不是 C 程序吗？§N
@@ -493,7 +495,7 @@ function plain(markdown='') {
   return markdown.replace(/```[\s\S]*?```/g,'').replace(/\[\[([^\]|]+)\|?([^\]]*)\]\]/g,(_,a,b)=>b||a.replace(/^#/, '')).replace(/^#+\s+.*$/gm,'').replace(/^> ?/gm,'').replace(/`([^`]+)`|\*\*([^*]+)\*\*/g,(_,code,bold)=>code??bold).replace(/\s+/g,' ').trim();
 }
 
-export function createQuestions(points) {
+export function createQuestions(points: Point[]): Question[] {
   const records = new Map(rows.trim().split(/\r?\n/).filter(Boolean).map(row=>{
     const [id,a,aa,b,ba]=row.split('§');
     if(!id||!a||!aa||!b||!ba) throw new Error('Malformed question row: '+row);
@@ -503,10 +505,10 @@ export function createQuestions(points) {
     const row=records.get(Number(p.id));
     if(!row) throw new Error('Missing authored pair for point '+p.id);
     const excerpt=plain(p.markdown).slice(0,900);
-    return ['a','b'].map(stage=>{
+    return (['a','b'] as const).map((stage): Question=>{
       const expected=row[stage==='a'?'aa':'ba'];
       const binary=expected==='Y'||expected==='N';
-      return {id:`p${p.id}-${stage}`,pointId:Number(p.id),stage,kind:binary?'choice':'input',prompt:row[stage],...(binary?{options:['是','否'],answer:expected==='Y'?0:1}:{answer:expected.includes('~')?expected.split('~'):expected}),explanation:`${binary?(expected==='Y'?'成立。':'不成立。'):`参考答案：${expected.split('~')[0]}。`} ${excerpt}`,hint:`回顾本题所用规则：${p.title}。先区分对象、类型、返回值及调用前提。`};
+      return {id:`p${p.id}-${stage}`,pointId:Number(p.id),stage,prompt:row[stage],...(binary?{kind:'choice' as const,options:['是','否'],answer:expected==='Y'?0:1}:{kind:'input' as const,answer:expected.includes('~')?expected.split('~'):expected}),explanation:`${binary?(expected==='Y'?'成立。':'不成立。'):`参考答案：${expected.split('~')[0]}。`} ${excerpt}`,hint:`回顾本题所用规则：${p.title}。先区分对象、类型、返回值及调用前提。`};
     });
   });
 }

@@ -4,13 +4,31 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node scripts/build.mjs",
-    "test": "node --test tests/*.test.mjs",
-    "check": "node scripts/check.mjs"
+    "dev": "node scripts/generate-library.ts && vite",
+    "build": "node scripts/build.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.ts",
+    "check": "node scripts/check.ts",
+    "check:browser": "node scripts/browser-check.ts && node scripts/check-web.ts"
   },
   "devDependencies": {
-    "markdown-it": "^14.1.0",
+    "@playwright/test": "^1.56.1",
+    "@types/katex": "0.16.8",
+    "@types/markdown-it": "14.2.0",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
     "katex": "^0.16.22",
-    "@playwright/test": "^1.56.1"
+    "markdown-it": "^14.1.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.8"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

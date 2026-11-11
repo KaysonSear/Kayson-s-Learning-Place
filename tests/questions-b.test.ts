@@ -1,21 +1,22 @@
+import type { Point } from '../src/types.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {createQuestions} from '../scripts/questions-b.mjs';
-import {courseSource} from '../scripts/course-source.mjs';
+import {createQuestions} from '../scripts/questions-b.ts';
+import {courseSource} from '../scripts/course-source.ts';
 
 const raw=fs.readFileSync(courseSource,'utf8');
 const headings=[...raw.matchAll(/^(#{2,4}) (.+)\r?$/gm)];
-const points=[];let chapter=0;
+const points: Pick<Point,'id'|'title'|'chapter'|'markdown'>[]=[];let chapter=0;
 headings.forEach((match,index)=>{
   if(match[1]==='##'&&/^\d{2} /.test(match[2]))chapter=Number(match[2].slice(0,2));
   const p=match[1]==='####'&&/^(\d+)\. (.*)/.exec(match[2]);
   if(p)points.push({id:+p[1],title:p[2],chapter,markdown:raw.slice(match.index+match[0].length,headings[index+1]?.index??raw.length).trim()});
 });
 const questions=createQuestions(points);
-const item=id=>questions.find(q=>q.id===id);
-const answers=id=>{const q=item(id);return q.kind==='choice'?[q.options[q.answer]]:Array.isArray(q.answer)?q.answer:[q.answer];};
-const accepts=(id,expected)=>assert.ok(answers(id).includes(String(expected)),`${id} should accept ${expected}`);
+const item=(id: string)=>questions.find(q=>q.id===id)!;
+const answers=(id: string)=>{const q=item(id);return q.kind==='choice'?[q.options[q.answer]]:q.kind==='input'?(Array.isArray(q.answer)?q.answer:[q.answer]):q.answer.map(String);};
+const accepts=(id: string,expected: string | number)=>assert.ok(answers(id).includes(String(expected)),`${id} should accept ${expected}`);
 
 test('all 577 late-course points have distinct authored baseline and transfer tasks',()=>{
   assert.equal(questions.length,1154);

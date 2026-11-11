@@ -1,15 +1,18 @@
 import {chromium} from '@playwright/test';
+import type {Locator, Page} from '@playwright/test';
+import type {Library, Progress} from '../src/types.ts';
+import {record, DAY} from '../src/engine.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL,fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const D=JSON.parse(fs.readFileSync(path.join(root,'content/library.json'),'utf8'));
+const D: Library=JSON.parse(fs.readFileSync(path.join(root,'content/library.json'),'utf8'));
 const url=pathToFileURL(path.join(root,'dist/C-Lab.html')).href;
 const browser=await chromium.launch({channel:'chrome',headless:true});
-const report={time:new Date().toISOString(),target:'Windows Chrome + Android-like Chromium touch emulation (not physical Android)',checks:[],errors:[],externalRequests:[]};
-function ok(name){report.checks.push(name);console.log('PASS',name);}
-async function assertIntegerTable(feedback) {
+const report={time:new Date().toISOString(),target:'Windows Chrome + Android-like Chromium touch emulation (not physical Android)',checks:[] as string[],errors:[] as string[],externalRequests:[] as string[]};
+function ok(name: string){report.checks.push(name);console.log('PASS',name);}
+async function assertIntegerTable(feedback: Locator) {
   const prose = feedback.locator('.feedback-prose');
   assert.equal(await prose.locator('thead th').count(), 4);
   assert.equal(await prose.locator('tbody tr').count(), 5);
@@ -19,7 +22,7 @@ async function assertIntegerTable(feedback) {
   assert.match(await prose.locator('table + p').innerText(), /<limits\.h>/);
 }
 
-async function assertTableScrolls(tab) {
+async function assertTableScrolls(tab: Page) {
   const scrollable = await tab.locator('.feedback-prose table').evaluate(table => {
     table.scrollLeft = table.scrollWidth;
     return table.scrollWidth > table.clientWidth && table.scrollLeft > 0;
@@ -34,29 +37,29 @@ page.on('pageerror',e=>report.errors.push(e.message));page.on('request',r=>{if(/
 try{
   await page.goto(url);await page.waitForSelector('h1');
   assert.equal(await page.title(),'C 微实验室');
-  assert.equal(await page.evaluate(()=>CLabDebug.counts.points),1064);ok('file:// launch while offline');
+  assert.equal(await page.evaluate(()=>window.CLabDebug!.counts.points),1064);ok('file:// launch while offline');
   await page.screenshot({path:path.join(root,'tests/home-desktop.png')});
   await page.getByRole('button',{name:'p++ 前进一步'}).click();
   assert.match(await page.locator('#hero-feedback').innerText(),/a\[1\]/);ok('interactive home pointer');
   await page.locator('[data-action=start]').click();
-  let state=await page.evaluate(()=>CLabDebug.getState());let q=D.questions.find(q=>q.id===state.session.queue[0]);
-  assert(!await page.locator('#main').innerText().then(t=>t.includes(D.points.find(p=>p.id===q.pointId).title)));ok('source title hidden before submission');
+  let state=await page.evaluate(()=>window.CLabDebug!.getState());let q=D.questions.find(q=>q.id===state.session!.queue[0])!;
+  assert(!await page.locator('#main').innerText().then(t=>t.includes(D.points.find(p=>p.id===q.pointId)!.title)));ok('source title hidden before submission');
   if(q.kind==='choice')await page.locator(`[data-action=choose][data-index="${q.answer}"]`).click();
   else await page.locator('#answer-input').fill(String(Array.isArray(q.answer)?q.answer[0]:q.answer));
-  await page.reload();state=await page.evaluate(()=>CLabDebug.getState());assert.notEqual(state.session.current.value,null);ok('draft answer and round survive reload');
+  await page.reload(); await page.waitForFunction(() => !!window.CLabDebug);state=await page.evaluate(()=>window.CLabDebug!.getState());assert.notEqual(state.session!.current.value,null);ok('draft answer and round survive reload');
   await page.getByRole('button',{name:'确认判断',exact:true}).click();
   assert.match(await page.locator('#question-feedback').innerText(),/判断正确/);
-  assert((await page.evaluate(()=>CLabDebug.getState())).points[q.pointId].base);ok('independent answer records baseline evidence');
+  assert((await page.evaluate(()=>window.CLabDebug!.getState())).points[q.pointId].base);ok('independent answer records baseline evidence');
   await page.locator('[data-action=next]').click();
   await page.getByRole('button',{name:'给我一点提示'}).click();
-  state=await page.evaluate(()=>CLabDebug.getState());q=D.questions.find(q=>q.id===state.session.queue[state.session.index]);
+  state=await page.evaluate(()=>window.CLabDebug!.getState());q=D.questions.find(q=>q.id===state.session!.queue[state.session!.index])!;
   if(q.kind==='choice')await page.locator(`[data-action=choose][data-index="${q.answer}"]`).click();
   else await page.locator('#answer-input').fill(String(Array.isArray(q.answer)?q.answer[0]:q.answer));
   await page.getByRole('button',{name:'确认判断',exact:true}).click();
-  assert(!(await page.evaluate(()=>CLabDebug.getState())).points[q.pointId].base);ok('hinted success does not earn independent evidence');
+  assert(!(await page.evaluate(()=>window.CLabDebug!.getState())).points[q.pointId].base);ok('hinted success does not earn independent evidence');
   await page.locator('[data-action=next]').click();
   await page.getByRole('button',{name:'这题先跳过'}).click();await page.locator('[data-action=next]').click();
-  assert.match(await page.locator('h1').innerText(),/向前/);assert.equal((await page.evaluate(()=>CLabDebug.getState())).rounds,1);ok('skip, finish and summary');
+  assert.match(await page.locator('h1').innerText(),/向前/);assert.equal((await page.evaluate(()=>window.CLabDebug!.getState())).rounds,1);ok('skip, finish and summary');
   await page.locator('[data-action=end-round]').click();
   await page.evaluate(()=>location.hash='point-770');await page.waitForSelector('.reading-layout');
   assert(await page.locator('.prose pre').count()>0);ok('full original code reading');
@@ -65,45 +68,44 @@ try{
   assert(await page.locator('.point-row').count()>0);assert((await page.locator('.point-row').count())<70);ok('whole-source search');
   await page.evaluate(()=>location.hash='lab-pointers');await page.waitForSelector('[data-lab-action=move]');
   await page.locator('[data-lab-action=move][data-value="1"]').click();await page.locator('[data-lab-action=move][data-value="1"]').click();await page.locator('[data-lab-action=read]').click();await page.locator('[data-lab-action=move][data-value="1"]').click();await page.locator('[data-lab-action=read]').click();
-  assert.match(await page.locator('.lab-status').innerText(),/未定义行为/);assert((await page.evaluate(()=>CLabDebug.getState())).labs.pointers);ok('pointer boundary stops value and awards separate lab badge');
-  await page.getByRole('button',{name:'本机已保存'}).click();const downloadPromise=page.waitForEvent('download');await page.locator('#settings-dialog [data-action=export]').click();const download=await downloadPromise;const downloadPath=await download.path();const saved=JSON.parse(fs.readFileSync(downloadPath,'utf8'));assert(saved.history.length>=3);ok('progress export with history');
-  await page.locator('#import-file').setInputFiles({name:'broken.json',mimeType:'application/json',buffer:Buffer.from('{')});await page.waitForFunction(()=>document.querySelector('#import-error').textContent.length>0);assert.match(await page.locator('#import-error').innerText(),/JSON/);ok('invalid import keeps current state');
-  await page.locator('#import-file').setInputFiles({name:'progress.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(saved))});await page.waitForSelector('#confirm-import');await page.locator('#confirm-import').click();assert.equal((await page.evaluate(()=>CLabDebug.getState())).history.length,saved.history.length);ok('validated import roundtrip');
-  const transferFixture=await page.evaluate(()=>{
-    const s=CLabDebug.getState();s.session=null;
-    for(const id of [777,288])CLabEngine.record(s,{id:`p${id}-a`,pointId:id,stage:'a'},{correct:true},Date.now()-2*CLabEngine.DAY);
-    return s;
-  });
+  assert.match(await page.locator('.lab-status').innerText(),/未定义行为/);assert((await page.evaluate(()=>window.CLabDebug!.getState())).labs.pointers);ok('pointer boundary stops value and awards separate lab badge');
+  await page.getByRole('button',{name:'本机已保存'}).click();const downloadPromise=page.waitForEvent('download');await page.locator('#settings-dialog [data-action=export]').click();const download=await downloadPromise;const downloadPath=await download.path();const saved: Progress=JSON.parse(fs.readFileSync(downloadPath!,'utf8'));assert(saved.history.length>=3);ok('progress export with history');
+  await page.locator('#import-file').setInputFiles({name:'broken.json',mimeType:'application/json',buffer:Buffer.from('{')});await page.waitForFunction(()=>!!document.querySelector('#import-error')?.textContent);assert.match(await page.locator('#import-error').innerText(),/JSON/);ok('invalid import keeps current state');
+  await page.locator('#import-file').setInputFiles({name:'progress.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(saved))});await page.waitForSelector('#confirm-import');await page.locator('#confirm-import').click();assert.equal((await page.evaluate(()=>window.CLabDebug!.getState())).history.length,saved.history.length);ok('validated import roundtrip');
+  const transferFixture = await page.evaluate(() => window.CLabDebug!.getState());
+  transferFixture.session = null;
+  for (const id of [777, 288]) record(transferFixture, {id: 'p' + id + '-a', pointId:id, stage:'a'}, {correct:true}, Date.now() - 2 * DAY);
   await page.getByRole('button',{name:'本机已保存'}).click();
   await page.locator('#import-file').setInputFiles({name:'transfer.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(transferFixture))});
   await page.locator('#confirm-import').click();
   await page.evaluate(()=>location.hash='point-777');await page.locator('[data-action=start-point]').click();
-  await page.locator('[data-action=seq-add][data-index="1"]').click();await page.reload();
+  await page.locator('[data-action=seq-add][data-index="1"]').click();await page.reload(); await page.waitForFunction(() => !!window.CLabDebug);
   assert.equal(await page.locator('.chosen-sequence li').count(),1);
   for(const i of [2,0])await page.locator(`[data-action=seq-add][data-index="${i}"]`).click();
   await page.getByRole('button',{name:'确认判断',exact:true}).click();assert.match(await page.locator('#question-feedback').innerText(),/判断正确/);
-  assert((await page.evaluate(()=>CLabDebug.getState())).points[777].transfer);ok('code ordering survives reload and verifies later transfer');
+  assert((await page.evaluate(()=>window.CLabDebug!.getState())).points[777].transfer);ok('code ordering survives reload and verifies later transfer');
   await page.evaluate(()=>location.hash='point-288');await page.locator('[data-action=start-point]').click();
   for(const [i,v] of [2,1,0].entries())await page.locator(`[data-match="${i}"]`).selectOption(String(v));
   await page.getByRole('button',{name:'确认判断',exact:true}).click();assert.match(await page.locator('#question-feedback').innerText(),/判断正确/);ok('array parameter type matching');
   assert.match(await page.locator('#question-feedback > p').innerText(), /数组形参只调整最外层/);
-  const beforeDrill = await page.evaluate(() => CLabDebug.getState());
+  const beforeDrill = await page.evaluate(() => window.CLabDebug!.getState());
   assert.equal(beforeDrill.drill, null);
   await page.evaluate(() => location.hash = 'home');
   await page.locator('.hero a[href="#drill"]').click();
   assert.match(await page.locator('.drill .eyebrow').innerText(), /第 1 题/);
   assert.equal(await page.locator('[data-drill-choice]:enabled').count(), 4);
-  const jumpTo = async number => {
+  const jumpTo = async (number: number) => {
     await page.locator('#drill-number').fill(String(number));
     await page.locator('#drill-jump').getByRole('button').click();
   };
   await jumpTo(1065);
   assert.match(await page.locator('#drill-error').innerText(), /1064/);
   await jumpTo(1064);
-  const lastChoice = D.drillQuestions.at(-1).answer;
+  const lastChoice = D.drillQuestions.at(-1)!.answer;
   await page.locator(`[data-drill-choice="${lastChoice}"]`).press('Enter');
   assert.match(await page.locator('#drill-feedback').innerText(), /回答正确/);
   assert.equal(await page.locator('#drill-feedback .button-row a').getAttribute('href'), '#point-1064');
+  await page.waitForFunction(() => document.activeElement?.id === 'drill-feedback');
   await page.keyboard.press('Enter');
   assert.match(await page.locator('.drill .eyebrow').innerText(), /第 1 题/);
   ok('drill jumps to original id, grades with keyboard, and wraps to the unanswered start');
@@ -114,28 +116,28 @@ try{
   await page.locator(`[data-drill-choice="${(question288.answer + 1) % question288.options.length}"]`).click();
   assert.match(await page.locator('#drill-feedback').innerText(), /回答错误/);
   assert.equal(await page.locator('[data-drill-choice]:enabled').count(), 0);
-  const duringDrill = await page.evaluate(() => CLabDebug.getState());
+  const duringDrill = await page.evaluate(() => window.CLabDebug!.getState());
   assert.deepEqual(duringDrill.points, beforeDrill.points);
   assert.deepEqual(duringDrill.session, beforeDrill.session);
   assert.deepEqual(duringDrill.history, beforeDrill.history);
-  await page.reload();
-  assert.deepEqual((await page.evaluate(() => CLabDebug.getState())).drill, duringDrill.drill);
+  await page.reload(); await page.waitForFunction(() => !!window.CLabDebug);
+  assert.deepEqual((await page.evaluate(() => window.CLabDebug!.getState())).drill, duringDrill.drill);
   assert.match(await page.locator('.drill-stats').innerText(), /已答 2 \/ 1064 · 答对 1 · 正确率 50%/);
   ok('random drill order and first answers survive reload without affecting mastery');
   await page.getByRole('button',{name:'本机已保存'}).click();
   const drillDownload = page.waitForEvent('download');
   await page.locator('#settings-dialog [data-action=export]').click();
-  const drillBackup = JSON.parse(fs.readFileSync(await (await drillDownload).path(),'utf8'));
+  const drillBackup: Progress = JSON.parse(fs.readFileSync((await (await drillDownload).path())!,'utf8'));
   assert.deepEqual(drillBackup.drill, duringDrill.drill);
-  for (const [fixture, expected] of [[saved, {}], [drillBackup, duringDrill.drill.answers]]) {
+  for (const [fixture, expected] of [[saved, {}], [drillBackup, duringDrill.drill!.answers]]) {
     await page.locator('#import-file').setInputFiles({name:'progress.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(fixture))});
     await page.locator('#confirm-import').click();
-    assert.deepEqual((await page.evaluate(() => CLabDebug.getState())).drill.answers, expected);
+    assert.deepEqual((await page.evaluate(() => window.CLabDebug!.getState())).drill!.answers, expected);
     if (fixture === saved) await page.getByRole('button',{name:'本机已保存'}).click();
   }
   page.once('dialog', dialog => dialog.dismiss());
   await page.locator('#drill-restart').click();
-  assert.deepEqual((await page.evaluate(() => CLabDebug.getState())).drill, duringDrill.drill);
+  assert.deepEqual((await page.evaluate(() => window.CLabDebug!.getState())).drill, duringDrill.drill);
   ok('drill backup roundtrip, legacy import, and canceled reset');
   const legacyDrill = {
     mode: 'random', order: D.points.map(point => point.id).reverse(), current: 31,
@@ -143,13 +145,15 @@ try{
   };
   const legacyBackup = { ...saved, drill: legacyDrill };
   const expectedLegacyChoices = { 1: 'main', 2: 'void', 25: '有符号整数类型', 31: '必相等' };
-  async function assertMigrated(tab) {
-    const restored = await tab.evaluate(() => CLabDebug.getState().drill);
+  async function assertMigrated(tab: Page) {
+    await tab.waitForFunction(() => !!window.CLabDebug);
+    const restored = await tab.evaluate(() => window.CLabDebug!.getState().drill);
+    assert(restored);
     assert.equal(restored.optionVersion, 2);
     assert.equal(restored.current, 31);
     assert.deepEqual(restored.order, legacyDrill.order);
     for (const [id, text] of Object.entries(expectedLegacyChoices)) {
-      assert.equal(D.drillQuestions[Number(id) - 1].options[restored.answers[id]], text);
+      assert.equal(D.drillQuestions[Number(id) - 1].options[restored.answers[Number(id)]], text);
     }
     assert.match(await tab.locator('.drill-stats').innerText(), /已答 4 \/ 1064 · 答对 2 · 正确率 50%/);
     return restored;
@@ -158,7 +162,7 @@ try{
   await page.locator('#import-file').setInputFiles({name:'old-drill.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(legacyBackup))});
   await page.locator('#confirm-import').click();
   const migrated = await assertMigrated(page);
-  await page.reload();
+  await page.reload(); await page.waitForFunction(() => !!window.CLabDebug);
   assert.deepEqual(await assertMigrated(page), migrated);
   ok('legacy two- and three-option backups preserve both correct and incorrect choices');
   const legacyContext = await browser.newContext();
@@ -167,7 +171,7 @@ try{
   await legacyPage.addInitScript(backup => localStorage.setItem('c-micro-lab-v1', JSON.stringify(backup)), legacyBackup);
   await legacyPage.goto(`${url}#drill`);
   assert.deepEqual(await assertMigrated(legacyPage), migrated);
-  assert.equal(await legacyPage.evaluate(() => JSON.parse(localStorage.getItem('c-micro-lab-v1')).drill.optionVersion), 2);
+  assert.equal(await legacyPage.evaluate(() => JSON.parse(localStorage.getItem('c-micro-lab-v1')!).drill.optionVersion), 2);
   await legacyContext.close();
   ok('existing local progress migrates and saves with the new option version');
   await page.locator('#drill-mode').selectOption('sequence');
@@ -181,7 +185,7 @@ try{
   await page.locator('#drill-feedback .button-row a').click();
   assert.match(await page.locator('.reading-head h1').innerText(), /标准最低整数范围/);
   await page.locator('[data-action=start-point]').click();
-  const integerPractice = D.questions.find(question => question.id === 'p29-a');
+  const integerPractice = D.questions.find(question => question.id === 'p29-a')!;
   if (integerPractice.kind === 'choice') {
     await page.locator(`[data-action=choose][data-index="${integerPractice.answer}"]`).click();
   } else {
@@ -227,6 +231,6 @@ try{
   assert(await m.evaluate(() => document.documentElement.scrollWidth <= 768));
   ok('drill fits 360px mobile and 768px tablet and advances by touch');
   await mobile.close();
-  const blocked=await browser.newContext();await blocked.addInitScript(()=>{Object.defineProperty(window,'localStorage',{get(){throw new DOMException('unavailable','SecurityError');}});});const b=await blocked.newPage();await b.goto(url);assert(await b.locator('#storage-warning').isVisible());await b.locator('[data-action=start]').click();assert(await b.locator('#question-prompt').isVisible());ok('unavailable local storage still permits learning');await blocked.close();
+  const blocked=await browser.newContext();await blocked.addInitScript(()=>{Object.defineProperty(window,'localStorage',{get(){throw new DOMException('unavailable','SecurityError');}});});const b=await blocked.newPage();await b.goto(url);await b.waitForFunction(() => !!window.CLabDebug);assert(await b.locator('#storage-warning').isVisible());await b.locator('[data-action=start]').click();assert(await b.locator('#question-prompt').isVisible());ok('unavailable local storage still permits learning');await blocked.close();
   assert.deepEqual(report.errors,[]);assert.deepEqual(report.externalRequests,[]);ok('no JavaScript exceptions or external HTTP requests');
-}catch(error){report.errors.push(error.stack);throw error;}finally{fs.writeFileSync(path.join(root,'tests/browser-report.json'),JSON.stringify(report,null,2));await browser.close();}
+}catch(error){report.errors.push(error instanceof Error ? error.stack ?? error.message : String(error));throw error;}finally{fs.writeFileSync(path.join(root,'tests/browser-report.json'),JSON.stringify(report,null,2));await browser.close();}

@@ -1,4 +1,5 @@
-// Authored situation-based A exercises. B transfer situations live in questions-b.mjs.
+import type { AuthoredExercise } from '../src/types.ts';
+// Authored situation-based A exercises. B transfer situations live in questions-b.ts.
 const records=String.raw`
 834§fp 是已打开流的 FILE *。要从流读取字符，应选 fgetc(fp) 而不是把 fp 当文件字节数组下标吗？§Y
 835§对 fp 调用 clearerr 后，需要修改保存路径的 char 数组才能清除流错误状态吗？§N
@@ -233,7 +234,7 @@ const records=String.raw`
 1064§同为 ELF，目标文件、共享对象、可执行文件可因内部类型字段和角色而不同吗？§Y
 `;
 
-export const baselineExtra=new Map(records.trim().split(/\r?\n/).map(line=>{
+export const baselineExtra=new Map<number, AuthoredExercise>(records.trim().split(/\r?\n/).map(line=>{
   const [id,prompt,raw]=line.split('§');
   if(!id||!prompt||!raw)throw new Error('Malformed extra baseline: '+line);
   const binary=raw==='Y'||raw==='N';
