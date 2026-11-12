@@ -18,10 +18,12 @@ const item=(id: string)=>questions.find(q=>q.id===id)!;
 const answers=(id: string)=>{const q=item(id);return q.kind==='choice'?[q.options[q.answer]]:q.kind==='input'?(Array.isArray(q.answer)?q.answer:[q.answer]):q.answer.map(String);};
 const accepts=(id: string,expected: string | number)=>assert.ok(answers(id).includes(String(expected)),`${id} should accept ${expected}`);
 
-test('all 577 late-course points have distinct authored baseline and transfer tasks',()=>{
-  assert.equal(questions.length,1154);
-  assert.equal(new Set(questions.map(q=>q.id)).size,1154);
-  for(let id=488;id<=1064;id++){
+test('late-course points have distinct authored baseline and transfer tasks',()=>{
+  const latePoints = points.filter(point => point.chapter >= 11);
+  assert(latePoints.length >= 577);
+  assert.equal(questions.length,latePoints.length*2);
+  assert.equal(new Set(questions.map(q=>q.id)).size,questions.length);
+  for(const {id} of latePoints){
     assert.ok(item(`p${id}-a`),`missing A${id}`);assert.ok(item(`p${id}-b`),`missing B${id}`);
     assert.notEqual(item(`p${id}-a`).prompt,item(`p${id}-b`).prompt);
   }

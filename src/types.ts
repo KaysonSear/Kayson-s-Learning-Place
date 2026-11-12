@@ -1,3 +1,5 @@
+import type { DrillAnswer, DrillAttempt } from './cloud-types.ts';
+
 export interface SourceSection {
   title: string;
   markdown: string;
@@ -19,7 +21,7 @@ export interface Cluster extends SourceSection {
   chapter: number;
 }
 export type Stage = 'a' | 'b';
-export interface QuestionRef { id: string; pointId: number; stage: Stage }
+export interface QuestionRef { id: string; pointId: number; stage: Stage; revision?: string }
 interface QuestionCopy { prompt: string; hint: string; explanation: string; code?: string; sourceTable?: boolean }
 export type Exercise =
   | { kind: 'input'; answer: string | string[] }
@@ -36,6 +38,10 @@ export interface DrillQuestion {
   answer: number;
   explanation: string;
   legacyOptionMap: number[];
+  optionIds?: string[];
+  legacyOptionIds?: {1: string[]; 2: string[]};
+  legacyGrade?: {revision:string; correctId:string; correctLabel:string; retired?:Record<string,string>};
+  revision?: string;
   sourceTable?: boolean;
 }
 export interface Library {
@@ -64,7 +70,7 @@ export interface PointProgress {
 }
 export interface Grade { correct: boolean; assisted: boolean; skipped: boolean }
 export interface RoundAnswer extends Grade { questionId: string; pointId: number }
-export interface Attempt extends RoundAnswer { stage: Stage; time: number }
+export interface Attempt extends RoundAnswer { stage: Stage; time: number; revision?: string }
 export type AnswerValue = string | number | (number | null)[] | null;
 export interface Draft {
   value: AnswerValue;
@@ -92,6 +98,8 @@ export interface DrillRound {
   answers: Record<number, number>;
   finished: boolean;
   optionVersion: 2;
+  roundId?: string;
+  answerInfo?: Record<number, DrillAnswer>;
 }
 export interface Progress {
   schemaVersion: 1;
@@ -104,4 +112,5 @@ export interface Progress {
   lastPoint: number | null;
   rounds: number;
   drill?: DrillRound | null;
+  drillAttempts?: DrillAttempt[];
 }

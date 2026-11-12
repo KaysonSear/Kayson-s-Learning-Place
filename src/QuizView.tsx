@@ -41,7 +41,7 @@ function QuizInput({question: q, draft: c, setValue, submit}: {
     }}><option value="">选择类型</option>{q.options.map((option, j) => <option key={option} value={j}>{option}</option>)}</select></label>)}
   </div>;
   return <><label className="sr-only" htmlFor="answer-input">输入你的答案</label>
-    <textarea className="answer-input" id="answer-input" rows={2} spellCheck={false} autoComplete="off"
+    <textarea className="answer-input" id="answer-input" rows={2} maxLength={20000} spellCheck={false} autoComplete="off"
       placeholder="输入结果、类型或题目要求的短答案" disabled={c.submitted} value={String(c.value ?? '')}
       onChange={event => setValue(event.target.value)} onKeyDown={event => {
         if (event.ctrlKey && event.key === 'Enter' && !event.nativeEvent.isComposing) {

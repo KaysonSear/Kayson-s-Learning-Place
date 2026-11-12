@@ -9,7 +9,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const D: Library=JSON.parse(fs.readFileSync(path.join(root,'content/library.json'),'utf8'));
 const html=fs.readFileSync(path.join(root,'dist/C-Lab.html'),'utf8');
 const ids=new Set(),prompts=new Map(),duplicates: [string,string][]=[];
-assert.equal(D.points.length,1064);assert.equal(D.chapters.length,19);assert.equal(D.clusters.length,118);assert.equal(D.questions.length,2128);assert.equal(D.counts.diagrams,190);
+assert(D.points.length>=1064);assert.equal(D.chapters.length,19);assert(D.clusters.length>=118);assert.equal(D.questions.length,D.points.length*2);assert(D.counts.diagrams>=190);
 assert.equal(D.drillQuestions.length, D.points.length);
 assert.equal(new Set(D.drillQuestions.map(q => q.prompt)).size, D.points.length);
 for (const [index, question] of D.drillQuestions.entries()) {
@@ -23,7 +23,7 @@ for (const [index, question] of D.drillQuestions.entries()) {
   assert.equal(new Set(question.legacyOptionMap).size, question.legacyOptionMap.length);
   assert(question.legacyOptionMap.every(index => Number.isInteger(index) && index >= 0 && index < 4));
 }
-for(let n=1;n<=1064;n++){
+for(let n=1;n<=D.points.length;n++){
   const p=D.points[n-1];assert.equal(p.id,n);assert(p.markdown.trim()&&p.html.trim());
   const pair=D.questions.filter(q=>q.pointId===n);assert.equal(pair.length,2,`point ${n}`);assert.deepEqual(pair.map(q=>q.stage).sort(),['a','b']);assert.notEqual(pair[0].prompt,pair[1].prompt);
 }

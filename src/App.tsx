@@ -9,6 +9,9 @@ import { emptyDraft, QuizView } from './QuizView.tsx';
 import { LabList, LabView } from './LabViews.tsx';
 import { getLab } from './labs.ts';
 import { SettingsDialog } from './SettingsDialog.tsx';
+import { connectCloud } from './cloud-sync.ts';
+import type { CloudStatus } from './cloud-sync.ts';
+import { createChange } from './cloud-progress.ts';
 import type { Library, Progress, Scope } from './types.ts';
 
 declare global {
@@ -28,7 +31,11 @@ function Navigation({active, mobile = false}: {active: string; mobile?: boolean}
   </nav>;
 }
 
-export function App({library}: {library: Library}) {
+const cloudLabels: Record<CloudStatus,string> = {
+  checking:'连接云端', empty:'初始化云端', synced:'云端已同步', pending:'等待同步', offline:'离线待同步', login:'请重新登录', error:'同步待重试'
+};
+
+export function App({library, cloud}: {library: Library; cloud: boolean}) {
   const points = useMemo(() => new Map(library.points.map(p => [p.id, p])), [library]);
   const questions = useMemo(() => new Map(library.questions.map(q => [q.id, q])), [library]);
   const bank = useMemo(() => new Map(library.drillQuestions.map(q => [q.id, q])), [library]);
@@ -36,6 +43,8 @@ export function App({library}: {library: Library}) {
   const storage = useMemo(() => openStorage(() => window.localStorage, progressFiles.restore), [progressFiles]);
   const [progress, setProgress] = useState(() => storage.load() ?? engine.fresh());
   const current = useRef(progress);
+  const connection = useRef<ReturnType<typeof connectCloud> | null>(null);
+  const [cloudStatus, setCloudStatus] = useState<CloudStatus>('checking');
   const [hash, setHash] = useState(location.hash);
   const [navOpen, setNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -58,7 +67,10 @@ export function App({library}: {library: Library}) {
 
   function commit(next: Progress, replace = false) {
     next.updatedAt = Date.now();
-    if (replace) storage.replace(next); else storage.save(next);
+    if (connection.current?.initialized) {
+      const operation = createChange(current.current, next, bank);
+      if (operation) connection.current.enqueue(operation);
+    } else if (replace) storage.replace(next); else storage.save(next);
     current.current = next;
     setProgress(next);
   }
@@ -117,6 +129,13 @@ export function App({library}: {library: Library}) {
     };
   }, [library, storage]);
 
+  useEffect(() => {
+    if (!cloud) return;
+    const sync = connectCloud(bank, next => { current.current = next; setProgress(next); }, setCloudStatus);
+    connection.current = sync;
+    return () => { sync.stop(); connection.current = null; };
+  }, [bank, cloud]);
+
   useLayoutEffect(() => {
     document.documentElement.style.setProperty('--scale', String(progress.settings.textSize));
     document.documentElement.classList.toggle('reduce-motion', progress.settings.reduceMotion);
@@ -129,9 +148,6 @@ export function App({library}: {library: Library}) {
   }, [narrow, navOpen, collapsed]);
 
   useLayoutEffect(() => {
-    if (name === 'drill' && !current.current.drill) {
-      edit(next => { next.drill = drill.start(bank.keys()); });
-    }
     if (point && point.id !== current.current.lastPoint) {
       edit(next => { next.lastPoint = point.id; });
     }
@@ -139,6 +155,12 @@ export function App({library}: {library: Library}) {
     main.current?.focus({preventScroll:true});
     if (cluster) document.getElementById('cluster-row-' + cluster.id)?.scrollIntoView();
   }, [hash]);
+
+  useLayoutEffect(() => {
+    if (name === 'drill' && !current.current.drill && (!cloud || cloudStatus !== 'checking')) {
+      edit(next => { next.drill = drill.start(bank.keys()); });
+    }
+  }, [name, progress.drill, cloud, cloudStatus]);
 
   const settings = () => setSettingsOpen(true);
   let page = <div className="empty"><h1>这个位置没有内容。</h1><p style={{marginTop:18}}><a className="text-button" href="#knowledge">回到知识地图</a></p></div>;
@@ -155,6 +177,7 @@ export function App({library}: {library: Library}) {
     edit(next => { next.labs[id] = Date.now(); });
     toast('实验挑战完成。这个能力印记已保存。');
   }} />;
+  if (cloud && cloudStatus === 'checking') page = <div className="empty" role="status"><p>正在读取云端进度…</p></div>;
 
   return <>
     <a className="skip-link" href="#main" data-action="skip-main" onClick={event => {event.preventDefault(); main.current?.focus();}}>跳到学习内容</a>
@@ -172,14 +195,20 @@ export function App({library}: {library: Library}) {
     <div className="workspace">
       <header className="topbar"><div><button type="button" className="icon-button" id="toggle-nav" aria-label="展开或收起导航" onClick={() => narrow ? setNavOpen(!navOpen) : setCollapsed(!collapsed)}>☰</button>
         <a className="mobile-brand" href="#home">C<span>微实验室</span></a><span id="breadcrumb">学习台 / {navLabel}</span></div>
-        <button type="button" className="storage-pill" id="storage-status" data-action="settings" onClick={settings}><span className="offline-dot" style={storage.available ? undefined : {background:'var(--red)'}} /> {storage.available ? '本机已保存' : '需导出进度'}</button>
+        <button type="button" className="storage-pill" id="storage-status" data-action="settings" onClick={settings}><span className="offline-dot" style={storage.available && (!cloud || cloudStatus === 'synced') ? undefined : {background:'var(--red)'}} /> {cloud ? cloudLabels[cloudStatus] : storage.available ? '本机已保存' : '需导出进度'}</button>
       </header>
       <div id="storage-warning" className="storage-warning" role="status" hidden={storage.available}>当前浏览器无法持久保存进度。本次学习仍可继续，离开前请到「设置与备份」导出进度文件。</div>
       <main id="main" ref={main} tabIndex={-1}>{page}</main>
       <footer className="footer"><span>C23 · 你的离线学习工作台</span><button type="button" className="text-button" data-action="settings" onClick={settings}>保存一份进度</button></footer>
     </div>
     <Navigation active={group} mobile />
-    {settingsOpen && <SettingsDialog progress={progress} restore={progressFiles.restore} edit={edit} close={() => setSettingsOpen(false)} download={download} replace={next => {
+    {settingsOpen && <SettingsDialog progress={progress} restore={progressFiles.restore} edit={edit} close={() => setSettingsOpen(false)} download={download}
+      cloud={cloud ? {label:cloudLabels[cloudStatus], empty:cloudStatus === 'empty', login:cloudStatus === 'login', initialize:async next => {
+        if (!connection.current) throw Error('云端尚未连接。');
+        await connection.current.initialize(next);
+        setSettingsOpen(false);
+        toast('云端主档已初始化。');
+      }} : undefined} replace={next => {
       if (name === 'drill' && !next.drill) next.drill = drill.start(bank.keys());
       commit(next, true);
       setSettingsOpen(false);

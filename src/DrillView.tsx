@@ -11,15 +11,16 @@ export function DrillView({round, bank, points, save}: {
 }) {
   const [error, setError] = useState('');
   const number = useRef<HTMLInputElement>(null);
-  const total = bank.size;
+  const total = round.order.length;
   const answered = Object.keys(round.answers).length;
-  const correct = Object.entries(round.answers).filter(([id, choice]) => bank.get(Number(id))?.answer === choice).length;
+  const correct = Object.entries(round.answers).filter(([id, choice]) => round.answerInfo?.[Number(id)]?.correct ?? bank.get(Number(id))?.answer === choice).length;
   const question = bank.get(round.current);
   if (!question) return null;
 
   const selected = round.answers[question.id];
   const graded = selected !== undefined;
-  const passed = selected === question.answer;
+  const recorded = round.answerInfo?.[question.id];
+  const passed = recorded?.correct ?? selected === question.answer;
   const position = round.order.indexOf(question.id) + 1;
 
   function update(next: DrillRound, focusId: string) {
@@ -67,7 +68,7 @@ export function DrillView({round, bank, points, save}: {
       <h2 className="drill-prompt" id="drill-prompt" tabIndex={-1}>{question.prompt}</h2>
       <div className="choice-list" role="group" aria-labelledby="drill-prompt">
         {question.options.map((option, index) => <button key={option} type="button" className={'choice ' + (graded && index === question.answer ? 'correct ' : '') + (graded && index === selected && !passed ? 'wrong' : '')} data-drill-choice={index} disabled={graded} onClick={() => {
-          const next = {...round, answers: {...round.answers}};
+          const next = {...round, answers: {...round.answers}, answerInfo: {...round.answerInfo}};
           if (drill.answer(next, question, index)) update(next, 'drill-feedback');
         }}><span className="choice-key">{String.fromCharCode(65 + index)}</span><span>{option}{graded && index === question.answer && ' ✓'}{graded && index === selected && '（你的答案）'}</span></button>)}
       </div>
@@ -77,7 +78,8 @@ export function DrillView({round, bank, points, save}: {
           advance();
         }
       }}>
-        <h2>{passed ? '回答正确' : '回答错误'}</h2><p>正确答案 {question.options[question.answer]}</p>
+        <h2>{passed ? '回答正确' : '回答错误'}</h2><p>正确答案 {recorded?.correctLabel ?? question.options[question.answer]}</p>
+        {recorded && recorded.revision !== question.revision && <p>这次选择：{recorded.label}（按作答时的题目版本计分）</p>}
         <Explanation question={question} point={points.get(question.id)} />
         <div className="button-row"><a className="text-button" href={'#point-' + question.id}>查看原文</a><Button className="primary" id="drill-next" onClick={advance}>{answered === total ? '查看本轮结果' : '下一题'}</Button></div>
       </section>}
