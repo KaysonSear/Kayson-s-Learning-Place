@@ -1,7 +1,7 @@
 import {chromium} from '@playwright/test';
 import type {Locator, Page} from '@playwright/test';
 import type {Library, Progress} from '../src/types.ts';
-import {record, DAY} from '../src/engine.ts';
+import {displayOrder} from '../src/drill.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL,fileURLToPath} from 'node:url';
@@ -35,63 +35,54 @@ await context.setOffline(true);
 const page=await context.newPage();
 page.on('pageerror',e=>report.errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url()))report.externalRequests.push(r.url());});
 try{
-  await page.goto(url);await page.waitForSelector('h1');
-  assert.equal(await page.title(),'C 微实验室');
-  assert.equal(await page.evaluate(()=>window.CLabDebug!.counts.points),1064);ok('file:// launch while offline');
+  await page.goto(url);await page.waitForSelector('#drill-prompt');
+  assert.equal(await page.title(),"Kayson's Learning Place");
+  assert.equal(await page.evaluate(()=>window.CLabDebug!.counts.points),1064);ok('file:// launch while offline opens the drill');
+  assert.equal(await page.locator('.brand').getAttribute('aria-label'),"Kayson's Learning Place");
+  assert.match(await page.locator('.brand').innerText(),/^K\s*ayson's\s*Learning Place$/);
+  assert.equal(await page.locator('.field-tab.active').innerText(),'Coding · C');
+  assert.equal(await page.locator('.field-tab:disabled').count(),2);
+  assert.equal(await page.getByText('从理解').count(),0);
+  assert.match(decodeURIComponent((await page.locator('link[rel=icon]').getAttribute('href'))!),/>K<\/text>/);ok('brand, Field tabs and drill-first landing');
   await page.screenshot({path:path.join(root,'tests/home-desktop.png')});
-  await page.getByRole('button',{name:'p++ 前进一步'}).click();
-  assert.match(await page.locator('#hero-feedback').innerText(),/a\[1\]/);ok('interactive home pointer');
-  await page.locator('[data-action=start]').click();
-  let state=await page.evaluate(()=>window.CLabDebug!.getState());let q=D.questions.find(q=>q.id===state.session!.queue[0])!;
-  assert(!await page.locator('#main').innerText().then(t=>t.includes(D.points.find(p=>p.id===q.pointId)!.title)));ok('source title hidden before submission');
-  if(q.kind==='choice')await page.locator(`[data-action=choose][data-index="${q.answer}"]`).click();
-  else await page.locator('#answer-input').fill(String(Array.isArray(q.answer)?q.answer[0]:q.answer));
-  await page.reload(); await page.waitForFunction(() => !!window.CLabDebug);state=await page.evaluate(()=>window.CLabDebug!.getState());assert.notEqual(state.session!.current.value,null);ok('draft answer and round survive reload');
-  await page.getByRole('button',{name:'确认判断',exact:true}).click();
-  assert.match(await page.locator('#question-feedback').innerText(),/判断正确/);
-  assert((await page.evaluate(()=>window.CLabDebug!.getState())).points[q.pointId].base);ok('independent answer records baseline evidence');
-  await page.locator('[data-action=next]').click();
-  await page.getByRole('button',{name:'给我一点提示'}).click();
-  state=await page.evaluate(()=>window.CLabDebug!.getState());q=D.questions.find(q=>q.id===state.session!.queue[state.session!.index])!;
-  if(q.kind==='choice')await page.locator(`[data-action=choose][data-index="${q.answer}"]`).click();
-  else await page.locator('#answer-input').fill(String(Array.isArray(q.answer)?q.answer[0]:q.answer));
-  await page.getByRole('button',{name:'确认判断',exact:true}).click();
-  assert(!(await page.evaluate(()=>window.CLabDebug!.getState())).points[q.pointId].base);ok('hinted success does not earn independent evidence');
-  await page.locator('[data-action=next]').click();
-  await page.getByRole('button',{name:'这题先跳过'}).click();await page.locator('[data-action=next]').click();
-  assert.match(await page.locator('h1').innerText(),/向前/);assert.equal((await page.evaluate(()=>window.CLabDebug!.getState())).rounds,1);ok('skip, finish and summary');
-  await page.locator('[data-action=end-round]').click();
+  for (const legacy of ['home','quiz']) { await page.evaluate(h=>location.hash=h,legacy);await page.waitForSelector('#drill-prompt'); }
+  assert.equal(await page.locator('.main-nav [data-nav=drill].active').count(),1);ok('legacy home and quiz routes open the drill');
+  const shownOrder = () => page.locator('[data-drill-choice]').evaluateAll(buttons => buttons.map(b => Number(b.getAttribute('data-drill-choice'))));
+  const orders: string[] = [];
+  for (let round = 0; round < 6; round++) {
+    const roundId = (await page.evaluate(() => window.CLabDebug!.getState().drill!.roundId))!;
+    assert.deepEqual(await shownOrder(), displayOrder(4, roundId + ':1'));
+    assert.match(await page.locator('[data-drill-choice] .choice-key').first().innerText(), /^A$/);
+    orders.push((await shownOrder()).join());
+    await page.locator('#drill-restart').click();
+  }
+  assert(new Set(orders).size > 1);
+  const first = D.drillQuestions[0];
+  await page.locator(`[data-drill-choice="${first.answer}"]`).click();
+  assert.match(await page.locator('#drill-feedback h2').innerText(), /回答正确/);
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('#drill-restart').click();
+  ok('option order reshuffles each round while grading follows the option, not its letter');
   await page.evaluate(()=>location.hash='point-770');await page.waitForSelector('.reading-layout');
   assert(await page.locator('.prose pre').count()>0);ok('full original code reading');
+  await page.evaluate(()=>location.hash='point-77');await page.waitForSelector('.reading-layout table');
+  assert(!(await page.locator('.reading-layout').innerText()).includes('<code>'));
+  assert.equal(await page.locator('.reading-layout td code', {hasText:/^\|\|$/}).count(),1);
+  await page.evaluate(()=>location.hash='point-634');await page.waitForSelector('.reading-layout');
+  assert.equal(await page.locator('.reading-layout strong', {hasText:'调用栈（Call Stack）'}).count(),1);
+  assert(!(await page.locator('.reading-layout').innerText()).includes('**'));
+  ok('table pipes and CJK bold render without Markdown residue');
   await page.evaluate(()=>location.hash='chapter-7');await page.waitForSelector('.cluster-group');assert(await page.locator('svg').count()>0);ok('embedded linked knowledge SVGs');
   await page.evaluate(()=>location.hash='knowledge');await page.waitForSelector('#knowledge-search');await page.locator('#knowledge-search').fill('realloc');
   assert(await page.locator('.point-row').count()>0);assert((await page.locator('.point-row').count())<70);ok('whole-source search');
   await page.evaluate(()=>location.hash='lab-pointers');await page.waitForSelector('[data-lab-action=move]');
   await page.locator('[data-lab-action=move][data-value="1"]').click();await page.locator('[data-lab-action=move][data-value="1"]').click();await page.locator('[data-lab-action=read]').click();await page.locator('[data-lab-action=move][data-value="1"]').click();await page.locator('[data-lab-action=read]').click();
   assert.match(await page.locator('.lab-status').innerText(),/未定义行为/);assert((await page.evaluate(()=>window.CLabDebug!.getState())).labs.pointers);ok('pointer boundary stops value and awards separate lab badge');
-  await page.getByRole('button',{name:'本机已保存'}).click();const downloadPromise=page.waitForEvent('download');await page.locator('#settings-dialog [data-action=export]').click();const download=await downloadPromise;const downloadPath=await download.path();const saved: Progress=JSON.parse(fs.readFileSync(downloadPath!,'utf8'));assert(saved.history.length>=3);ok('progress export with history');
+  await page.getByRole('button',{name:'本机已保存'}).click();const downloadPromise=page.waitForEvent('download');await page.locator('#settings-dialog [data-action=export]').click();const download=await downloadPromise;const downloadPath=await download.path();const saved: Progress=JSON.parse(fs.readFileSync(downloadPath!,'utf8'));assert(saved.drill&&saved.labs.pointers);ok('progress export with drill and labs');
   await page.locator('#import-file').setInputFiles({name:'broken.json',mimeType:'application/json',buffer:Buffer.from('{')});await page.waitForFunction(()=>!!document.querySelector('#import-error')?.textContent);assert.match(await page.locator('#import-error').innerText(),/JSON/);ok('invalid import keeps current state');
-  await page.locator('#import-file').setInputFiles({name:'progress.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(saved))});await page.waitForSelector('#confirm-import');await page.locator('#confirm-import').click();assert.equal((await page.evaluate(()=>window.CLabDebug!.getState())).history.length,saved.history.length);ok('validated import roundtrip');
-  const transferFixture = await page.evaluate(() => window.CLabDebug!.getState());
-  transferFixture.session = null;
-  for (const id of [777, 288]) record(transferFixture, {id: 'p' + id + '-a', pointId:id, stage:'a'}, {correct:true}, Date.now() - 2 * DAY);
-  await page.getByRole('button',{name:'本机已保存'}).click();
-  await page.locator('#import-file').setInputFiles({name:'transfer.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(transferFixture))});
-  await page.locator('#confirm-import').click();
-  await page.evaluate(()=>location.hash='point-777');await page.locator('[data-action=start-point]').click();
-  await page.locator('[data-action=seq-add][data-index="1"]').click();await page.reload(); await page.waitForFunction(() => !!window.CLabDebug);
-  assert.equal(await page.locator('.chosen-sequence li').count(),1);
-  for(const i of [2,0])await page.locator(`[data-action=seq-add][data-index="${i}"]`).click();
-  await page.getByRole('button',{name:'确认判断',exact:true}).click();assert.match(await page.locator('#question-feedback').innerText(),/判断正确/);
-  assert((await page.evaluate(()=>window.CLabDebug!.getState())).points[777].transfer);ok('code ordering survives reload and verifies later transfer');
-  await page.evaluate(()=>location.hash='point-288');await page.locator('[data-action=start-point]').click();
-  for(const [i,v] of [2,1,0].entries())await page.locator(`[data-match="${i}"]`).selectOption(String(v));
-  await page.getByRole('button',{name:'确认判断',exact:true}).click();assert.match(await page.locator('#question-feedback').innerText(),/判断正确/);ok('array parameter type matching');
-  assert.match(await page.locator('#question-feedback > p').innerText(), /数组形参只调整最外层/);
+  await page.locator('#import-file').setInputFiles({name:'progress.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(saved))});await page.waitForSelector('#confirm-import');await page.locator('#confirm-import').click();assert.deepEqual((await page.evaluate(()=>window.CLabDebug!.getState())).labs,saved.labs);ok('validated import roundtrip');
   const beforeDrill = await page.evaluate(() => window.CLabDebug!.getState());
-  assert.equal(beforeDrill.drill, null);
-  await page.evaluate(() => location.hash = 'home');
-  await page.locator('.hero a[href="#drill"]').click();
+  await page.evaluate(() => location.hash = 'drill');
   assert.match(await page.locator('.drill .eyebrow').innerText(), /第 1 题/);
   assert.equal(await page.locator('[data-drill-choice]:enabled').count(), 4);
   const jumpTo = async (number: number) => {
@@ -139,6 +130,36 @@ try{
   await page.locator('#drill-restart').click();
   assert.deepEqual((await page.evaluate(() => window.CLabDebug!.getState())).drill, duringDrill.drill);
   ok('drill backup roundtrip, legacy import, and canceled reset');
+  await page.reload(); await page.waitForFunction(() => !!window.CLabDebug);
+  assert.equal(await page.locator('.main-nav .nav-badge').innerText(),'1');
+  await page.locator('#drill-mix').check();
+  assert.equal((await page.evaluate(() => window.CLabDebug!.getState())).settings.mixMistakes, true);
+  await page.locator('#drill-next').click();
+  for (let i = 0; i < 3; i++) {
+    const id = Number((await page.locator('.drill .eyebrow').innerText()).match(/第 (\d+) 题/)![1]);
+    await page.locator(`[data-drill-choice="${D.drillQuestions[id - 1].answer}"]`).click();
+    await page.locator('#drill-next').click();
+  }
+  await page.waitForSelector('[data-mixed-review]');
+  assert.match(await page.locator('.drill .eyebrow').innerText(), /错题回顾 · 第 288 题/);
+  await page.locator(`[data-drill-choice="${question288.answer}"]`).click();
+  assert.match(await page.locator('[data-mistake-note]').innerText(), /1 \/ 3/);
+  await page.locator('#drill-next').click();
+  assert.equal(await page.locator('[data-mixed-review]').count(), 0);
+  ok('random drill mixes one mistake after every three new questions');
+  await page.evaluate(() => location.hash = 'mistakes');
+  assert.match(await page.locator('[data-mistake="288"]').innerText(), /连对 1 \/ 3/);
+  await page.locator('[data-action=mistakes-start]').click();
+  for (const expected of [/2 \/ 3/, /移出错题本/]) {
+    assert.match(await page.locator('.drill .eyebrow').innerText(), /第 288 题/);
+    await page.locator(`[data-drill-choice="${question288.answer}"]`).click();
+    assert.match(await page.locator('[data-mistake-note]').innerText(), expected);
+    await page.locator('#drill-next').click();
+  }
+  assert.match(await page.locator('.mistakes h2').innerText(), /已清空/);
+  assert.equal(await page.locator('.main-nav .nav-badge').count(), 0);
+  ok('mistake-book practice removes a question after three consecutive correct answers in any mode');
+  await page.evaluate(() => location.hash = 'drill');await page.waitForSelector('#drill-mode');
   const legacyDrill = {
     mode: 'random', order: D.points.map(point => point.id).reverse(), current: 31,
     answers: { 1: 2, 2: 1, 25: 1, 31: 0 }, finished: false
@@ -175,6 +196,11 @@ try{
   await legacyContext.close();
   ok('existing local progress migrates and saves with the new option version');
   await page.locator('#drill-mode').selectOption('sequence');
+  await jumpTo(57);
+  await page.locator(`[data-drill-choice="${D.drillQuestions[56].answer}"]`).click();
+  assert(await page.locator('#drill-feedback p math').count() >= 3);
+  assert(!(await page.locator('#drill-feedback').innerText()).includes('$'));
+  ok('inline math in drill explanations renders as formulas');
   await jumpTo(29);
   const integerQuestion = D.drillQuestions[28];
   await page.locator(`[data-drill-choice="${integerQuestion.answer}"]`).click();
@@ -184,26 +210,18 @@ try{
   await jumpTo(29);
   await page.locator('#drill-feedback .button-row a').click();
   assert.match(await page.locator('.reading-head h1').innerText(), /标准最低整数范围/);
-  await page.locator('[data-action=start-point]').click();
-  const integerPractice = D.questions.find(question => question.id === 'p29-a')!;
-  if (integerPractice.kind === 'choice') {
-    await page.locator(`[data-action=choose][data-index="${integerPractice.answer}"]`).click();
-  } else {
-    const expected = Array.isArray(integerPractice.answer) ? integerPractice.answer[0] : integerPractice.answer;
-    await page.locator('#answer-input').fill(String(expected));
-  }
-  await page.getByRole('button',{name:'确认判断',exact:true}).click();
-  await assertIntegerTable(page.locator('#question-feedback'));
-  ok('desktop drill and three-question feedback preserve the #29 table, paragraphs, and navigation');
+  await page.locator('[data-action=drill-point]').click();
+  await page.waitForFunction(() => location.hash === '#drill');
+  assert.match(await page.locator('.drill .eyebrow').innerText(), /第 29 题/);
+  ok('desktop drill feedback preserves the #29 table, paragraphs, and point-to-drill navigation');
   const mobile=await browser.newContext({viewport:{width:360,height:800},deviceScaleFactor:1,isMobile:true,hasTouch:true});await mobile.setOffline(true);const m=await mobile.newPage();m.on('pageerror',e=>report.errors.push(e.message));
   await m.goto(url);
-  for(const hash of ['home','knowledge','chapter-7','point-770','progress','labs',...['build','types','expressions','control','calls','arrays','pointers','strings','formats','parse','bits','sort','struct','resources','streams','math'].map(id=>'lab-'+id)]){
+  for(const hash of ['drill','mistakes','knowledge','chapter-7','point-770','progress','labs',...['build','types','expressions','control','calls','arrays','pointers','strings','formats','parse','bits','sort','struct','resources','streams','math'].map(id=>'lab-'+id)]){
     await m.evaluate(h=>location.hash=h,hash);await m.waitForTimeout(25);
     const overflow=await m.evaluate(()=>({scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth}));assert(overflow.scroll<=overflow.client+1,`${hash} overflows: ${JSON.stringify(overflow)}`);
   }ok('360px touch layout: all 16 labs and knowledge/progress views fit');
-  await m.evaluate(()=>location.hash='home');await m.screenshot({path:path.join(root,'tests/home-mobile.png'),fullPage:true});
-  await m.locator('[data-action=start]').tap();await m.waitForSelector('#question-prompt');await m.screenshot({path:path.join(root,'tests/quiz-mobile.png'),fullPage:true});
-  assert.equal(await m.evaluate(()=>document.documentElement.scrollWidth),360);ok('mobile question layout');
+  await m.evaluate(()=>location.hash='drill');await m.waitForSelector('#drill-prompt');await m.screenshot({path:path.join(root,'tests/home-mobile.png'),fullPage:true});
+  await m.evaluate(()=>location.hash='mistakes');await m.waitForSelector('.mistakes');assert.equal(await m.evaluate(()=>document.documentElement.scrollWidth),360);ok('mobile drill landing and mistake book layout');
   await m.evaluate(()=>location.hash='lab-pointers');await m.waitForSelector('.lab-canvas');await m.screenshot({path:path.join(root,'tests/lab-mobile.png'),fullPage:true});
   await m.setViewportSize({width:768,height:1024});assert(await m.evaluate(()=>document.documentElement.scrollWidth<=768));ok('768px tablet layout');
   await m.setViewportSize({width:360,height:800});
@@ -231,6 +249,6 @@ try{
   assert(await m.evaluate(() => document.documentElement.scrollWidth <= 768));
   ok('drill fits 360px mobile and 768px tablet and advances by touch');
   await mobile.close();
-  const blocked=await browser.newContext();await blocked.addInitScript(()=>{Object.defineProperty(window,'localStorage',{get(){throw new DOMException('unavailable','SecurityError');}});});const b=await blocked.newPage();await b.goto(url);await b.waitForFunction(() => !!window.CLabDebug);assert(await b.locator('#storage-warning').isVisible());await b.locator('[data-action=start]').click();assert(await b.locator('#question-prompt').isVisible());ok('unavailable local storage still permits learning');await blocked.close();
+  const blocked=await browser.newContext();await blocked.addInitScript(()=>{Object.defineProperty(window,'localStorage',{get(){throw new DOMException('unavailable','SecurityError');}});});const b=await blocked.newPage();await b.goto(url);await b.waitForFunction(() => !!window.CLabDebug);assert(await b.locator('#storage-warning').isVisible());await b.waitForSelector('[data-drill-choice]');ok('unavailable local storage still permits learning');await blocked.close();
   assert.deepEqual(report.errors,[]);assert.deepEqual(report.externalRequests,[]);ok('no JavaScript exceptions or external HTTP requests');
 }catch(error){report.errors.push(error instanceof Error ? error.stack ?? error.message : String(error));throw error;}finally{fs.writeFileSync(path.join(root,'tests/browser-report.json'),JSON.stringify(report,null,2));await browser.close();}

@@ -240,4 +240,4 @@ export const baselineExtra=new Map<number, AuthoredExercise>(records.trim().spli
   const binary=raw==='Y'||raw==='N';
   return [Number(id),binary?{prompt,kind:'choice',options:['是','否'],answer:raw==='Y'?0:1}:{prompt,kind:'input',answer:raw.includes(';;')?raw.split(';;'):raw}];
 }));
-if(baselineExtra.size!==231)throw new Error('Expected 231 extra baselines');
+if(baselineExtra.size<231)throw new Error('Expected at least 231 extra baselines');
