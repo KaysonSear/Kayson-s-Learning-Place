@@ -123,7 +123,7 @@ async function main() {
       const progressRequests = /\/api\/progress(?:\?.*)?$/;
       await a.route(progressRequests, dropSync);
       await a.setOffline(true);
-      await left.locator('[data-drill-choice]').nth((correct + 1) % 4).click();
+      await left.locator(`[data-drill-choice="${(correct + 1) % 4}"]`).click();
       assert.match(await left.locator('#drill-feedback').innerText(), /回答错误/);
       await left.waitForFunction(() => new Promise<boolean>(resolve => {
         const request = indexedDB.open('c-micro-lab-cloud-v1',1);
@@ -133,10 +133,12 @@ async function main() {
           count.onsuccess = () => { db.close(); resolve(count.result > 0); };
         };
       }));
+      // Unload the app while still offline: closing first would lift the emulation before scripts stop and let the queue sync.
+      await left.goto('about:blank');
       await left.close();
       const beforeRight = await authRequest(authPath,{headers:{cookie}});
       assert.deepEqual((await beforeRight.json() as {operations:unknown[]}).operations, []);
-      await rightDrill.locator('[data-drill-choice]').nth(correct).click();
+      await rightDrill.locator(`[data-drill-choice="${correct}"]`).click();
       await expect(rightDrill.locator('#drill-feedback h2')).toHaveText('回答正确');
       await expect.poll(async () => {
         const result = await authRequest(authPath,{headers:{cookie}});

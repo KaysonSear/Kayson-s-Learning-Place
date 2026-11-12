@@ -15,6 +15,24 @@ export function makeOrder(ids: Iterable<number>, mode: DrillMode, random = Math.
   return order;
 }
 
+/** Seeded permutation of option indexes, so a question's options appear in a new order each time it comes back. */
+export function displayOrder(count: number, seed: string) {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+  const random = () => {
+    h = (h + 0x6D2B79F5) | 0;
+    let t = Math.imul(h ^ (h >>> 15), 1 | h);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const order = Array.from({length:count}, (_, i) => i);
+  for (let i = count - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order;
+}
+
 export function start(ids: Iterable<number>, mode: DrillMode = 'sequence'): DrillRound {
   const order = makeOrder(ids, mode);
   return { mode, order, current: order[0], answers: {}, finished: false, optionVersion: OPTION_VERSION, roundId:crypto.randomUUID() };

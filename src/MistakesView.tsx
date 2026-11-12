@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DrillCard, nextStreak, streakNote } from './DrillView.tsx';
+import { DrillCard, freshOrder, nextStreak, streakNote } from './DrillView.tsx';
 import type { Review, ReviewResult } from './DrillView.tsx';
 import { CLEAR_STREAK, pickMistake } from './mistakes.ts';
 import { Button, focus } from './ui.tsx';
@@ -11,14 +11,15 @@ export function MistakesView({book, bank, points, review}: {
   points: ReadonlyMap<number, Point>;
   review: Review;
 }) {
-  const [current, setCurrent] = useState<{id: number; result?: ReviewResult} | null>(null);
+  const [current, setCurrent] = useState<{id: number; order: number[]; result?: ReviewResult} | null>(null);
   const [cleared, setCleared] = useState(0);
   const question = current && bank.get(current.id);
 
   function pick(exclude?: number) {
     const id = pickMistake(book, exclude);
-    setCurrent(id === undefined ? null : {id});
-    focus(id === undefined ? 'mistakes-title' : 'drill-prompt');
+    const question = id === undefined ? undefined : bank.get(id);
+    setCurrent(question ? {id:question.id, order:freshOrder(question)} : null);
+    focus(question ? 'drill-prompt' : 'mistakes-title');
   }
 
   if (question && current) {
@@ -27,7 +28,7 @@ export function MistakesView({book, bank, points, review}: {
     return <section className="drill" aria-labelledby="mistakes-title">
       <div className="section-head"><h1 id="mistakes-title" tabIndex={-1}>错题专项</h1><button type="button" className="text-button" data-action="mistakes-stop" onClick={() => { setCurrent(null); focus('mistakes-title'); }}>结束练习</button></div>
       <p className="drill-stats">错题本剩余 {remaining} 道 · 本次已移出 {cleared} 道 · 每道题连续答对 {CLEAR_STREAK} 次移出</p>
-      <DrillCard question={question} points={points} selected={result?.choice} recorded={result?.answer}
+      <DrillCard question={question} order={current.order} points={points} selected={result?.choice} recorded={result?.answer}
         eyebrow={<>第 {question.id} 题 · 已连续答对 {book.get(question.id) ?? (result?.streak === null ? CLEAR_STREAK : 0)} / {CLEAR_STREAK}</>}
         note={result && streakNote(result.streak)}
         nextLabel={remaining ? '下一题' : '完成'}
@@ -36,7 +37,7 @@ export function MistakesView({book, bank, points, review}: {
           const answer = review(question.id, index);
           if (!answer) return;
           if (streak === null) setCleared(cleared + 1);
-          setCurrent({id:question.id, result:{choice:index, answer, streak}});
+          setCurrent({...current, result:{choice:index, answer, streak}});
           focus('drill-feedback');
         }}
         next={() => pick(question.id)} />

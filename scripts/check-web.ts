@@ -51,7 +51,7 @@ try {
           await libraryResponse;
           await page.locator('#drill-prompt').waitFor();
           assert.equal(await page.locator('[data-drill-choice]:enabled').count(), 4);
-          const choice = page.locator('[data-drill-choice]').nth(library.drillQuestions[0].answer);
+          const choice = page.locator(`[data-drill-choice="${library.drillQuestions[0].answer}"]`);
           if (touch) await choice.tap(); else await choice.press('Enter');
           assert.match(await page.locator('#drill-feedback h2').innerText(), /回答正确/);
           await page.locator('#drill-next').click();

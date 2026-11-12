@@ -1,6 +1,7 @@
 import {chromium} from '@playwright/test';
 import type {Locator, Page} from '@playwright/test';
 import type {Library, Progress} from '../src/types.ts';
+import {displayOrder} from '../src/drill.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL,fileURLToPath} from 'node:url';
@@ -46,6 +47,22 @@ try{
   await page.screenshot({path:path.join(root,'tests/home-desktop.png')});
   for (const legacy of ['home','quiz']) { await page.evaluate(h=>location.hash=h,legacy);await page.waitForSelector('#drill-prompt'); }
   assert.equal(await page.locator('.main-nav [data-nav=drill].active').count(),1);ok('legacy home and quiz routes open the drill');
+  const shownOrder = () => page.locator('[data-drill-choice]').evaluateAll(buttons => buttons.map(b => Number(b.getAttribute('data-drill-choice'))));
+  const orders: string[] = [];
+  for (let round = 0; round < 6; round++) {
+    const roundId = (await page.evaluate(() => window.CLabDebug!.getState().drill!.roundId))!;
+    assert.deepEqual(await shownOrder(), displayOrder(4, roundId + ':1'));
+    assert.match(await page.locator('[data-drill-choice] .choice-key').first().innerText(), /^A$/);
+    orders.push((await shownOrder()).join());
+    await page.locator('#drill-restart').click();
+  }
+  assert(new Set(orders).size > 1);
+  const first = D.drillQuestions[0];
+  await page.locator(`[data-drill-choice="${first.answer}"]`).click();
+  assert.match(await page.locator('#drill-feedback h2').innerText(), /回答正确/);
+  page.once('dialog', dialog => dialog.accept());
+  await page.locator('#drill-restart').click();
+  ok('option order reshuffles each round while grading follows the option, not its letter');
   await page.evaluate(()=>location.hash='point-770');await page.waitForSelector('.reading-layout');
   assert(await page.locator('.prose pre').count()>0);ok('full original code reading');
   await page.evaluate(()=>location.hash='point-77');await page.waitForSelector('.reading-layout table');

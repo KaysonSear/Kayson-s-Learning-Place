@@ -21,8 +21,21 @@ export function streakNote(streak: number | null) {
   return streak === null ? '已连续答对 ' + CLEAR_STREAK + ' 次，移出错题本。' : streak === 0 ? '已加入错题本。连续答对 ' + CLEAR_STREAK + ' 次后移出。' : '错题本：已连续答对 ' + streak + ' / ' + CLEAR_STREAK + '。';
 }
 
-export function DrillCard({question, eyebrow, selected, recorded, points, choose, next, nextLabel, note}: {
+/** Where each question's correct option was last shown, so a reshuffle can move it elsewhere. */
+const lastCorrectPosition = new Map<number, number>();
+
+/** A fresh random option order for a repeat appearance, moving the correct option off its last position when possible. */
+export function freshOrder(question: DrillQuestion) {
+  let order = drill.displayOrder(question.options.length, crypto.randomUUID());
+  for (let tries = 0; tries < 8 && order.indexOf(question.answer) === lastCorrectPosition.get(question.id); tries++) {
+    order = drill.displayOrder(question.options.length, crypto.randomUUID());
+  }
+  return order;
+}
+
+export function DrillCard({question, order, eyebrow, selected, recorded, points, choose, next, nextLabel, note}: {
   question: DrillQuestion;
+  order: number[];
   eyebrow: ReactNode;
   selected: number | undefined;
   recorded: DrillAnswer | undefined;
@@ -34,12 +47,13 @@ export function DrillCard({question, eyebrow, selected, recorded, points, choose
 }) {
   const graded = selected !== undefined;
   const passed = recorded?.correct ?? selected === question.answer;
+  lastCorrectPosition.set(question.id, order.indexOf(question.answer));
   return <>
     <p className="eyebrow">{eyebrow}</p>
     <h2 className="drill-prompt" id="drill-prompt" tabIndex={-1}>{question.prompt}</h2>
     <div className="choice-list" role="group" aria-labelledby="drill-prompt">
-      {question.options.map((option, index) => <button key={option} type="button" className={'choice ' + (graded && index === question.answer ? 'correct ' : '') + (graded && index === selected && !passed ? 'wrong' : '')} data-drill-choice={index} disabled={graded} onClick={() => choose(index)}>
-        <span className="choice-key">{String.fromCharCode(65 + index)}</span><span>{option}{graded && index === question.answer && ' ✓'}{graded && index === selected && '（你的答案）'}</span></button>)}
+      {order.map((index, position) => [index, question.options[index], position] as const).map(([index, option, position]) => <button key={option} type="button" className={'choice ' + (graded && index === question.answer ? 'correct ' : '') + (graded && index === selected && !passed ? 'wrong' : '')} data-drill-choice={index} disabled={graded} onClick={() => choose(index)}>
+        <span className="choice-key">{String.fromCharCode(65 + position)}</span><span>{option}{graded && index === question.answer && ' ✓'}{graded && index === selected && '（你的答案）'}</span></button>)}
     </div>
     {graded && <section className={passed ? 'feedback' : 'feedback wrong'} id="drill-feedback" tabIndex={-1} onKeyDown={event => {
       if (event.key === 'Enter' && !event.repeat && event.target === event.currentTarget) {
@@ -68,7 +82,7 @@ export function DrillView({round, bank, points, book, mix, setMix, save, review}
 }) {
   const [error, setError] = useState('');
   const [sinceMix, setSinceMix] = useState(0);
-  const [interjection, setInterjection] = useState<{id: number; result?: ReviewResult} | null>(null);
+  const [interjection, setInterjection] = useState<{id: number; order: number[]; result?: ReviewResult} | null>(null);
   const [roundNote, setRoundNote] = useState<{id: number; streak: number | null} | null>(null);
   const number = useRef<HTMLInputElement>(null);
   const total = round.order.length;
@@ -93,9 +107,10 @@ export function DrillView({round, bank, points, book, mix, setMix, save, review}
     setRoundNote(null);
     if (mixing && sinceMix >= MIX_EVERY && !next.finished) {
       const id = pickMistake(book, question?.id);
-      if (id !== undefined) {
+      const picked = id === undefined ? undefined : bank.get(id);
+      if (picked) {
         setSinceMix(0);
-        setInterjection({id});
+        setInterjection({id:picked.id, order:freshOrder(picked)});
       }
     }
     update(next, next.finished ? 'drill-feedback' : 'drill-prompt');
@@ -137,13 +152,13 @@ export function DrillView({round, bank, points, book, mix, setMix, save, review}
   if (reviewQuestion && interjection) {
     const result = interjection.result;
     body = <div className="mixed-review" data-mixed-review>
-      <DrillCard question={reviewQuestion} points={points} selected={result?.choice} recorded={result?.answer}
+      <DrillCard question={reviewQuestion} order={interjection.order} points={points} selected={result?.choice} recorded={result?.answer}
         eyebrow={<>错题回顾 · 第 {reviewQuestion.id} 题 · 已连续答对 {book.get(reviewQuestion.id) ?? (result?.streak === null ? CLEAR_STREAK : 0)} / {CLEAR_STREAK}</>}
         note={result && streakNote(result.streak)} nextLabel="回到本轮"
         choose={index => {
           const streak = nextStreak(book, reviewQuestion.id, index === reviewQuestion.answer);
           const answer = review(reviewQuestion.id, index);
-          if (answer) setInterjection({id:reviewQuestion.id, result:{choice:index, answer, streak}});
+          if (answer) setInterjection({...interjection, result:{choice:index, answer, streak}});
           focus('drill-feedback');
         }}
         next={() => { setInterjection(null); focus('drill-prompt'); }} />
@@ -152,7 +167,8 @@ export function DrillView({round, bank, points, book, mix, setMix, save, review}
     body = <section className="feedback" tabIndex={-1} id="drill-feedback"><h2>本轮全部答完</h2><p>输入原题号可回看本轮答案。{book.size > 0 && <> 错题本里还有 {book.size} 道题，<a href="#mistakes">去专项练习</a>。</>}</p></section>;
   } else {
     const selected = round.answers[question.id];
-    body = <DrillCard question={question} points={points} selected={selected} recorded={round.answerInfo?.[question.id]}
+    // Seeded by round: stable across reloads within a round, reshuffled whenever a new round starts.
+    body = <DrillCard question={question} order={drill.displayOrder(question.options.length, (round.roundId ?? 'legacy') + ':' + question.id)} points={points} selected={selected} recorded={round.answerInfo?.[question.id]}
       eyebrow={<>第 {question.id} 题{round.mode === 'random' && (' · 随机位置 ' + position + ' / ' + total)}</>}
       note={roundNote?.id === question.id ? streakNote(roundNote.streak) : undefined}
       nextLabel={answered === total ? '查看本轮结果' : '下一题'}

@@ -48,7 +48,7 @@ To fix a question, edit the bank source and rebuild. `tests/review-*.json` recor
 
 **App logic (`src/`).** Rule modules are kept free of UI code and are unit-tested:
 - `engine.ts`: spaced-review scheduling and progress import validation. Intervals are 1/3/7/14 days. A transfer question appears at least one day after an independent pass. Reading the material, using a hint, or retrying after seeing the answer the same day does not count as an independent pass.
-- `drill.ts`: drill rounds. The drill is the landing page (`#home`/`#quiz` redirect to `#drill`); the old three-question quiz UI was removed, but `engine.ts` evidence and `session` data are still validated and exported for backup compatibility.
+- `drill.ts`: drill rounds. Options are displayed in a per-appearance order (`displayOrder`, seeded by round id for rounds, random for mistake practice); grading uses the original option index / `optionIds`, so `data-drill-choice` is the original index and tests must select by it, never by position. The drill is the landing page (`#home`/`#quiz` redirect to `#drill`); the old three-question quiz UI was removed, but `engine.ts` evidence and `session` data are still validated and exported for backup compatibility.
 - `mistakes.ts`: the mistake book is *derived* from the append-only `progress.drillAttempts` log (wrong → in book; 3 consecutive correct in any mode → out). Mistake-book answers are logged under the fixed `REVIEW_ROUND` id and sync as the `review` cloud operation. `restore` backfills the log from the current round for older backups.
 - `labs.ts`: 16 limited teaching models. No arbitrary C code is executed.
 
