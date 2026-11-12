@@ -1,5 +1,6 @@
 import { answerInfo, isDrillAnswer } from './drill.ts';
 import { isObject, record, validateImport } from './engine.ts';
+import { REVIEW_ROUND } from './mistakes.ts';
 import type { CloudChange, CloudOperation, DrillPosition } from './cloud-types.ts';
 import type { DrillQuestion, Progress } from './types.ts';
 
@@ -31,6 +32,10 @@ export function createChange(previous: Progress, next: Progress, bank: ReadonlyM
   if (Object.keys(labs).length) change.labs = labs;
   if (next.settings.reduceMotion !== previous.settings.reduceMotion) (change.settings ??= {}).reduceMotion = next.settings.reduceMotion;
   if (next.settings.textSize !== previous.settings.textSize) (change.settings ??= {}).textSize = next.settings.textSize;
+  if (!!next.settings.mixMistakes !== !!previous.settings.mixMistakes) (change.settings ??= {}).mixMistakes = !!next.settings.mixMistakes;
+  const added = next.drillAttempts?.slice(previous.drillAttempts?.length ?? 0) ?? [];
+  const review = [...added].reverse().find(attempt => attempt.roundId === REVIEW_ROUND);
+  if (review) change.review = {questionId:review.questionId, answer:{optionId:review.optionId, revision:review.revision, correct:review.correct, label:review.label, correctLabel:review.correctLabel}};
 
   const round = next.drill;
   const before = previous.drill;
@@ -68,6 +73,7 @@ export function applyOperation(state: Progress, operation: CloudOperation, bank:
   Object.assign(state.settings, change.settings);
   if (change.lastPoint !== undefined) state.lastPoint = change.lastPoint;
   state.updatedAt = Math.max(state.updatedAt, change.time);
+  if (change.review) (state.drillAttempts ??= []).push({...change.review.answer, questionId:change.review.questionId, roundId:REVIEW_ROUND, operationId:operation.id});
 
   const update = change.drill;
   if (!update) return;
@@ -111,6 +117,17 @@ export function createOperationDecoder(pointIds: number[], questionIds: string[]
     return {mode:raw.mode, current:raw.current, finished:raw.finished, ...(order ? {order} : {})};
   }
 
+  function readAnswer(raw: unknown) {
+    if (!isObject(raw) || !validPoint(raw.questionId) || !isDrillAnswer(raw.answer)) throw Error('无效刷题答案。');
+    const answer = raw.answer;
+    const q = bank.get(raw.questionId);
+    if (!q) throw Error('刷题题目不存在。');
+    const index = q.optionIds?.indexOf(answer.optionId) ?? -1;
+    const expected = q.revision === answer.revision ? answerInfo(q, index) : undefined;
+    if (q.revision === answer.revision && !expected) throw Error('刷题选项不存在。');
+    return {questionId:q.id, answer:expected ?? {optionId:answer.optionId, revision:answer.revision, correct:answer.correct, label:answer.label, correctLabel:answer.correctLabel}};
+  }
+
   return (value: unknown): CloudOperation => {
     if (!isObject(value) || !validId(value.id) || !isObject(value.change)) throw Error('无效同步操作。');
     const raw = value.change;
@@ -130,10 +147,12 @@ export function createOperationDecoder(pointIds: number[], questionIds: string[]
     if (raw.settings !== undefined) {
       const settings = raw.settings;
       if (!isObject(settings) || settings.reduceMotion !== undefined && typeof settings.reduceMotion !== 'boolean' ||
+          settings.mixMistakes !== undefined && typeof settings.mixMistakes !== 'boolean' ||
           settings.textSize !== undefined && settings.textSize !== 1 && settings.textSize !== 1.1 && settings.textSize !== 1.2) throw Error('无效设置。');
       change.settings = {reduceMotion:settings.reduceMotion, textSize:settings.textSize};
       if (settings.reduceMotion === undefined) delete change.settings.reduceMotion;
       if (settings.textSize === undefined) delete change.settings.textSize;
+      if (typeof settings.mixMistakes === 'boolean') change.settings.mixMistakes = settings.mixMistakes;
     }
     if (raw.drill !== undefined) {
       const update = raw.drill;
@@ -145,18 +164,10 @@ export function createOperationDecoder(pointIds: number[], questionIds: string[]
         drill.start = {...start, order:start.order};
       }
       if (update.position !== undefined) drill.position = readPosition(update.position);
-      if (update.answer !== undefined) {
-        if (!isObject(update.answer) || !validPoint(update.answer.questionId) || !isDrillAnswer(update.answer.answer)) throw Error('无效刷题答案。');
-        const answer = update.answer.answer;
-        const q = bank.get(update.answer.questionId);
-        if (!q) throw Error('刷题题目不存在。');
-        const index = q.optionIds?.indexOf(answer.optionId) ?? -1;
-        const expected = q.revision === answer.revision ? answerInfo(q, index) : undefined;
-        if (q.revision === answer.revision && !expected) throw Error('刷题选项不存在。');
-        drill.answer = {questionId:q.id, answer:expected ?? {optionId:answer.optionId, revision:answer.revision, correct:answer.correct, label:answer.label, correctLabel:answer.correctLabel}};
-      }
+      if (update.answer !== undefined) drill.answer = readAnswer(update.answer);
       change.drill = drill;
     }
+    if (raw.review !== undefined) change.review = readAnswer(raw.review);
     if (Object.keys(change).length < 2) throw Error('空同步操作。');
     return {id:value.id, change};
   };

@@ -36,7 +36,20 @@ for(const q of D.questions){
   const key=q.prompt.replace(/\s+/g,'');if(prompts.has(key))duplicates.push([prompts.get(key),q.id]);else prompts.set(key,q.id);
   assert(!q.prompt.includes('【填空】'),`generic source-cloze ${q.id}`);
 }
+for(const q of [...D.questions,...D.drillQuestions]){
+  const math=/\$[^$\n]+\$/.test(q.explanation);
+  assert.equal(!!q.explanationHtml,math,`explanation math not rendered: ${q.id}`);
+  if(q.explanationHtml){assert(!q.explanationHtml.includes('katex-error')&&!q.explanationHtml.includes('$'),`invalid explanation formula: ${q.id}`);assert(!/<(?:script|iframe|object)\b/i.test(q.explanationHtml),`unsafe explanation ${q.id}`);}
+}
+// Table questions show the rendered source table, so only plain-text explanations are displayed as-is.
+for(const q of D.drillQuestions.filter(q=>!q.sourceTable)){
+  for(const [name,re] of [['rule',/(^|\s)(-{3,}|\*{3,})(\s|$)/],['backtick',/`/],['raw code tag',/<\/?code/],['entity',/&#\d+;/],['wiki link',/\[\[|\]\]/]] as const)
+    assert(!re.test(q.explanation),`drill ${q.id} explanation has Markdown residue (${name})`);
+}
 for(const item of [...D.points,...D.chapters,...D.clusters,...D.extras]){
+  const visible=item.html.replace(/<pre[\s\S]*?<\/pre>|<code[\s\S]*?<\/code>|<math[\s\S]*?<\/math>|<svg[\s\S]*?<\/svg>/g,' ').replace(/<[^>]+>/g,' ');
+  for(const [name,re] of [['escaped tag',/&lt;\/?code/],['bold',/\*\*/],['wiki link',/\[\[|\]\]/],['math',/\$/]] as const)
+    assert(!re.test(visible),`${item.title} shows unrendered Markdown (${name})`);
   assert(!item.html.includes('katex-error'),`invalid formula: ${item.title}`);
   for(const m of item.html.matchAll(/href="#point-(\d+)"/g))assert(D.points.some(p=>p.id===Number(m[1])));
   assert(!/<(?:script|iframe|object)\b/i.test(item.html),`unsafe source ${item.title}`);

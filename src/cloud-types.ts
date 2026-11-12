@@ -35,6 +35,8 @@ export interface CloudChange {
     position?: DrillPosition;
     answer?: {questionId: number; answer: DrillAnswer};
   };
+  /** A mistake-book answer outside any drill round (logged under REVIEW_ROUND). */
+  review?: {questionId: number; answer: DrillAnswer};
 }
 
 export interface CloudOperation {

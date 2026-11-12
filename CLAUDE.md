@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-C 微实验室 (C Micro Lab): a Chinese-language C23 study app built with React 19 + strict TypeScript + Vite. The whole course lives in one Markdown file, `content/Coding · C.md`. Builds produce two outputs from the same React source:
+Kayson's Learning Place: a Chinese-language study app organized into Fields (`src/fields.ts`; only **Coding · C** is built, others show as upcoming). The Coding · C field is a C23 course built with React 19 + strict TypeScript + Vite. The whole course lives in one Markdown file, `content/Coding · C.md`. Builds produce two outputs from the same React source:
 - `dist/C-Lab.html`: one self-contained offline HTML file (inline script, CSS and course data, no network, progress kept in localStorage).
 - `dist-cloud/` + `worker/`: a Cloudflare Worker that serves the app behind a site password and syncs progress through D1.
 
@@ -48,7 +48,8 @@ To fix a question, edit the bank source and rebuild. `tests/review-*.json` recor
 
 **App logic (`src/`).** Rule modules are kept free of UI code and are unit-tested:
 - `engine.ts`: spaced-review scheduling and progress import validation. Intervals are 1/3/7/14 days. A transfer question appears at least one day after an independent pass. Reading the material, using a hint, or retrying after seeing the answer the same day does not count as an independent pass.
-- `drill.ts`: drill rounds.
+- `drill.ts`: drill rounds. The drill is the landing page (`#home`/`#quiz` redirect to `#drill`); the old three-question quiz UI was removed, but `engine.ts` evidence and `session` data are still validated and exported for backup compatibility.
+- `mistakes.ts`: the mistake book is *derived* from the append-only `progress.drillAttempts` log (wrong → in book; 3 consecutive correct in any mode → out). Mistake-book answers are logged under the fixed `REVIEW_ROUND` id and sync as the `review` cloud operation. `restore` backfills the log from the current round for older backups.
 - `labs.ts`: 16 limited teaching models. No arbitrary C code is executed.
 
 `progress.ts` builds backup files and restores them with validation. `storage.ts` wraps localStorage under key `c-micro-lab-v1`. Views are `App.tsx`, `*View(s).tsx` and `SettingsDialog.tsx`, with styles in `style.css`.

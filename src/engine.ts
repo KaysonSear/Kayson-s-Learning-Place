@@ -79,6 +79,7 @@ export function validateImport(value: unknown, pointIds: number[], questionIds: 
   for(const [id,time] of Object.entries(value.labs||{})){if(!LAB_IDS.has(id)||!isTime(time))fail('实验记录格式无效。');clean.labs[id]=time;}
   if(value.settings!==undefined&&!isObject(value.settings))fail('设置格式无效。');
   clean.settings={reduceMotion:!!value.settings?.reduceMotion,textSize:typeof value.settings?.textSize === "number" && [1,1.1,1.2].includes(value.settings.textSize)?value.settings.textSize:1};
+  if(value.settings?.mixMistakes===true)clean.settings.mixMistakes=true;
   if(value.rounds!==undefined&&(typeof value.rounds !== "number"||!Number.isSafeInteger(value.rounds)||value.rounds<0))fail('完成轮次格式无效。');
   clean.rounds=value.rounds||0;
   if(value.session!==null&&value.session!==undefined){

@@ -22,7 +22,7 @@ export interface Cluster extends SourceSection {
 }
 export type Stage = 'a' | 'b';
 export interface QuestionRef { id: string; pointId: number; stage: Stage; revision?: string }
-interface QuestionCopy { prompt: string; hint: string; explanation: string; code?: string; sourceTable?: boolean }
+interface QuestionCopy { prompt: string; hint: string; explanation: string; explanationHtml?: string; code?: string; sourceTable?: boolean }
 export type Exercise =
   | { kind: 'input'; answer: string | string[] }
   | { kind: 'choice'; options: string[]; answer: number }
@@ -37,6 +37,8 @@ export interface DrillQuestion {
   options: string[];
   answer: number;
   explanation: string;
+  /** Explanation with inline $…$ math pre-rendered to MathML at build time. */
+  explanationHtml?: string;
   legacyOptionMap: number[];
   optionIds?: string[];
   legacyOptionIds?: {1: string[]; 2: string[]};
@@ -107,7 +109,7 @@ export interface Progress {
   points: Record<number, PointProgress>;
   history: Attempt[];
   labs: Record<string, number>;
-  settings: { reduceMotion: boolean; textSize: number };
+  settings: { reduceMotion: boolean; textSize: number; mixMistakes?: boolean };
   session: Session | null;
   lastPoint: number | null;
   rounds: number;

@@ -6,9 +6,12 @@ import { createHash } from 'node:crypto';
 function excerpt(markdown: string) {
   return markdown
     .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/gm, ' ')
+    .replace(/<code>([^<\n]*)<\/code>/g, (_, code: string) => code.replace(/&#124;/g, '|'))
     .replace(/\[\[#([^|\]]+)(?:\|([^\]]+))?\]\]/g, (_, name, label) => label || name)
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-    .replace(/`([^`]+)`|\*\*([^*]+)\*\*/g, (_, code, bold) => code ?? bold)
+    .replace(/`([^`\n]+)`/g, '$1')
+    .replace(/\*\*([^*\n]+?)\*\*/g, '$1')
     .replace(/^> ?/gm, '')
     .replace(/\s+/g, ' ')
     .trim();

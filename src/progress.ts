@@ -1,5 +1,6 @@
 import { validateImport, isObject } from './engine.ts';
 import { isDrillAnswer, restore as restoreDrill } from './drill.ts';
+import { backfillAttempts } from './mistakes.ts';
 import type { DrillQuestion, Progress } from './types.ts';
 
 
@@ -22,6 +23,7 @@ export function createProgressFiles(library: {points:{id:number}[]; questions:{i
             revision:attempt.revision, correct:attempt.correct, label:attempt.label, correctLabel:attempt.correctLabel};
         });
       }
+      backfillAttempts(progress, drillBank);
       return progress;
     },
     backup(progress: Progress) {

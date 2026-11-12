@@ -57,7 +57,7 @@ try {
           await page.locator('#drill-next').click();
           await page.reload();
           assert.match(await page.locator('.drill .eyebrow').innerText(), /第 2 题/);
-          for (const [hash, selector] of [['home','.hero'], ['knowledge','#knowledge-search'], ['point-29','.reading-layout'], ['lab-pointers','.lab-canvas'], ['progress','.metrics']]) {
+          for (const [hash, selector] of [['home','.drill'], ['mistakes','.mistakes'], ['knowledge','#knowledge-search'], ['point-29','.reading-layout'], ['lab-pointers','.lab-canvas'], ['progress','.metrics']]) {
             await page.evaluate(value => location.hash = value, hash);
             await page.locator(selector).waitFor();
             assert(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), engine.name() + ' ' + width + ' ' + hash);
