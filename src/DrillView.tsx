@@ -50,7 +50,7 @@ export function DrillCard({question, order, eyebrow, selected, recorded, points,
   lastCorrectPosition.set(question.id, order.indexOf(question.answer));
   return <>
     <p className="eyebrow">{eyebrow}</p>
-    <h2 className="drill-prompt" id="drill-prompt" tabIndex={-1}>{question.prompt}</h2>
+    <h2 className="drill-prompt" id="drill-prompt" tabIndex={-1} {...(question.promptHtml ? {dangerouslySetInnerHTML: {__html: question.promptHtml}} : {children: question.prompt})} />
     <div className="choice-list" role="group" aria-labelledby="drill-prompt">
       {order.map((index, position) => [index, question.options[index], position] as const).map(([index, option, position]) => <button key={option} type="button" className={'choice ' + (graded && index === question.answer ? 'correct ' : '') + (graded && index === selected && !passed ? 'wrong' : '')} data-drill-choice={index} disabled={graded} onClick={() => choose(index)}>
         <span className="choice-key">{String.fromCharCode(65 + position)}</span><span>{option}{graded && index === question.answer && ' ✓'}{graded && index === selected && '（你的答案）'}</span></button>)}

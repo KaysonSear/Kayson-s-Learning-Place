@@ -21,6 +21,9 @@ npm run typecheck    # regenerates content/library.json first, then tsc --noEmit
 npm test             # node --test tests/*.test.ts
 node --test tests/drill.test.ts                          # single file
 node --test --test-name-pattern="sequential" tests/drill.test.ts   # single test
+node scripts/validate-cloze.ts 226-271   # validate one point range of the cloze bank
+node scripts/validate-cloze.ts           # validate the whole cloze bank
+node scripts/validate-practice.ts        # validate the whole three-question bank
 npm run check        # content integrity asserts over content/library.json + dist/C-Lab.html (needs a build first)
 npm run check:browser  # Chrome + Playwright WebKit checks at 360/768/desktop; needs `npx playwright install webkit`
 npm run check:cloud    # local D1 + Chrome end-to-end login/import/sync check (run after build)
@@ -31,34 +34,33 @@ CI (`.github/workflows/check.yml`) runs build → typecheck → test → check. 
 
 ## Architecture
 
-**Content pipeline (`scripts/`).** `generate-library.ts` parses the course Markdown by heading level: `##` chapters (19), `###` clusters `NN.N` (118+), `####` numbered points (1064+). It renders them with markdown-it and KaTeX (MathML), converts Obsidian `[[#links]]` and `> [!callout]` blocks, and draws mermaid blocks as inline SVG diagrams. It then attaches questions and writes two files:
+**Content pipeline (`scripts/`).** `generate-library.ts` parses the course Markdown by heading level via `course-parse.ts`: `##` chapters (19), `###` clusters `NN.N` (120+), `####` numbered points (1087+). `markdown.ts` owns the shared markdown-it + KaTeX (MathML) renderer, Obsidian `[[#links]]` and `> [!callout]` conversion, and mermaid-to-SVG diagrams. It then attaches questions and writes two files:
 - `content/library.json`: the full `Library` (see `src/types.ts`), loaded by the app.
 - `content/sync-catalog.json`: a trimmed id/revision catalog that the Worker imports to validate operations.
 
 Both files are generated and gitignored. The script throws if the source no longer meets the expected counts. `C_LAB_SOURCE` overrides the Markdown path (`scripts/course-source.ts`). The build must never modify the original Markdown. `sourceHash` (SHA-256) records which source a build used, and `check.ts` verifies it.
 
 **Question banks.**
-- Three-question practice (two exercises per point, stages `a`/`b`): authored in TypeScript in `scripts/questions-a.ts` and `scripts/questions-b*.ts`, with interactive overrides in `scripts/interactive-questions.ts`.
-- Drill (one four-option cloze per point): `content/drill-NN-NN.txt` (`id§prompt§answer§distractor…`) plus `content/drill-options-NN-NN.txt` (extra distractors), loaded by `scripts/drill-bank.ts`. Option order comes from a deterministic hash shuffle.
-- `content/drill-option-baseline.json` maps older option sets to legacy option ids and grades, so saved answers from earlier bank versions still restore and grade correctly. Each question's `revision` and `optionIds` are content hashes. Changing a prompt, its answer or its options changes them.
+- Drill: `content/cloze/chNN*.json` (`format: cloze-bank-v1`), one four-option cloze per point, loaded by `scripts/cloze-bank.ts`. Each entry quotes a verbatim source span with `{{…}}` blank markers (1–3 blanks). A multi-blank option is an array of parts; the app displays it as `ini; double` and grades it as one choice. `options[0]` is the correct combination. The loader verifies that the quote is a contiguous span of the point Markdown, extracts the containing paragraph/table/code block as the excerpt, and renders the authored `note` plus the excerpt through `scripts/markdown.ts`. Option order comes from a deterministic hash shuffle; `optionIds` and `revision` are content hashes.
+- Three-question practice (two exercises per point, stages `a`/`b`): content files `content/practice/a/` (chapters 1–10, `id§promptA§answerA§promptB§answerB`), `content/practice/b-a/` (chapters 11–19 A), `content/practice/b-b/` (chapters 11–19 B, `id¦promptB¦answerB`), loaded by `scripts/practice-bank.ts`. `questions-a.ts` / `questions-b.ts` keep only the conversion logic (`Y`/`N`, `~`, `;;`, quoted pairs). The practice UI is gone; this bank stays for generation and structural tests.
 
-To fix a question, edit the bank source and rebuild. `tests/review-*.json` records how the content was reviewed.
+Authoring rules and the validator workflow are in `scripts/cloze-authoring.md`. To fix a question, edit the content file and rebuild.
 
 **Single-file build (`scripts/build.ts`).** First it runs the normal vite build (→ `dist-cloud/`) and copies library.json into it. Then it runs a second Vite lib build of `src/main.tsx` as one IIFE. That build must produce exactly one chunk with no imports, so don't add dynamic imports or asset imports. The script then fills the `<!-- STYLE -->`, `<!-- DATA -->` and `<!-- SCRIPT -->` placeholders in `src/shell.html`. At runtime `src/main.tsx` reads the inline `#library-data` JSON. If that is missing, it fetches `./library.json`, and the Worker's `X-CLab-Cloud: 1` header switches the app into cloud mode.
 
 **App logic (`src/`).** Rule modules are kept free of UI code and are unit-tested:
 - `engine.ts`: spaced-review scheduling and progress import validation. Intervals are 1/3/7/14 days. A transfer question appears at least one day after an independent pass. Reading the material, using a hint, or retrying after seeing the answer the same day does not count as an independent pass.
-- `drill.ts`: drill rounds. Options are displayed in a per-appearance order (`displayOrder`, seeded by round id for rounds, random for mistake practice); grading uses the original option index / `optionIds`, so `data-drill-choice` is the original index and tests must select by it, never by position. The drill is the landing page (`#home`/`#quiz` redirect to `#drill`); the old three-question quiz UI was removed, but `engine.ts` evidence and `session` data are still validated and exported for backup compatibility.
-- `mistakes.ts`: the mistake book is *derived* from the append-only `progress.drillAttempts` log (wrong → in book; 3 consecutive correct in any mode → out). Mistake-book answers are logged under the fixed `REVIEW_ROUND` id and sync as the `review` cloud operation. `restore` backfills the log from the current round for older backups.
+- `drill.ts`: drill rounds. Options are displayed in a per-appearance order (`displayOrder`, seeded by round id for rounds, random for mistake practice); grading uses the original option index / `optionIds`, so `data-drill-choice` is the original index and tests must select by it, never by position. `restore` drops saved answers whose `revision` no longer matches the current question. The drill is the landing page (`#home`/`#quiz` redirect to `#drill`); the old three-question quiz UI was removed, but `engine.ts` evidence and `session` data are still validated and exported for backup compatibility.
+- `mistakes.ts`: the mistake book is *derived* from the append-only `progress.drillAttempts` log (wrong → in book; 3 consecutive correct in any mode → out). Answers whose `revision` does not match the current question are ignored. Mistake-book answers are logged under the fixed `REVIEW_ROUND` id and sync as the `review` cloud operation. `restore` backfills the log from the current round for older backups.
 - `labs.ts`: 16 limited teaching models. No arbitrary C code is executed.
 
-`progress.ts` builds backup files and restores them with validation. `storage.ts` wraps localStorage under key `c-micro-lab-v1`. Views are `App.tsx`, `*View(s).tsx` and `SettingsDialog.tsx`, with styles in `style.css`.
+`progress.ts` builds backup files and restores them with validation. `src/epoch.ts` holds `PROGRESS_EPOCH`; when a saved progress file (local, backup or cloud seed) has a different or missing epoch, `restore` clears points, history, sessions, rounds, drill state and the mistake book while keeping labs and settings. `storage.ts` wraps localStorage under key `c-micro-lab-v1`. Views are `App.tsx`, `*View(s).tsx` and `SettingsDialog.tsx`, with styles in `style.css`. Drill feedback renders `explanationHtml` through `<Prose>` so tables and code blocks are valid; the prompt uses `promptHtml` with `.cloze-blank` spans.
 
 **Cloud sync.** Progress changes become `CloudOperation`s:
-- `cloud-progress.ts`: `createChange` diffs two progress states into an operation. `applyOperation` and `createOperationDecoder` are shared by the client and the Worker.
+- `cloud-progress.ts`: `createChange` diffs two progress states into an operation and stamps the current `epoch`. `applyOperation` and `createOperationDecoder` are shared by the client and the Worker. Operations from another epoch only apply lab marks and settings; old learning/drill fields are inert.
 - `cloud-journal.ts`: an IndexedDB queue of pending operations.
 - `cloud-sync.ts`: pushes and pulls against `/api/progress`, retries with backoff, and shows checkpoint + pending operations as visible progress.
 
 The Worker (`worker/index.ts`, `worker/auth.ts`) handles password login with sessions and rate limiting, and serves `/api/progress` plus `/api/progress/initialize` (seed upload, 4 MB limit). Every other path goes to `ASSETS` behind the session check. The D1 schema lives in `migrations/`, the binding is `DB`, and the secret is `SITE_PASSWORD`. `wrangler.jsonc` is the production config. `npm run cloud:preview:config` generates a gitignored `.wrangler.preview.json` from `C_LAB_PREVIEW_DB_ID`.
 
-**Compatibility constraint.** Progress JSON exported by earlier versions must keep importing and grading correctly. When changing question banks, progress shape or operation formats, keep the restore paths (`progress.ts`, `drill.ts` `restore`, legacy option maps) and their tests working.
+**Compatibility constraint.** Progress JSON exported by earlier versions must keep importing without errors. Since the 2026-11 bank change, an older or missing `epoch` intentionally clears learning progress (points, history, sessions, rounds, drill attempts) and keeps labs and settings; this is the user-approved reset for the renumbered source. Within the current epoch, stale drill answers are dropped by `revision`. When changing question banks, progress shape or operation formats, keep the restore paths (`progress.ts`, `drill.ts` `restore`) and their tests working.

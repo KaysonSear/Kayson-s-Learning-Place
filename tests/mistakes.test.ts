@@ -13,10 +13,12 @@ const makeQuestion = (id: number): DrillQuestion => ({
 });
 const bank = new Map([1, 2, 3].map(id => [id, makeQuestion(id)]));
 const round = '11111111-1111-4111-8111-111111111111';
+const epoch = 'test-epoch';
+const freshProgress = () => { const progress = fresh(); progress.epoch = epoch; return progress; };
 const grade = (id: number, correct: boolean) => answerInfo(bank.get(id)!, correct ? 1 : 0)!;
 
 function log(...entries: [number, boolean, string?][]) {
-  const progress = fresh();
+  const progress = freshProgress();
   for (const [id, correct, roundId = round] of entries) recordAttempt(progress, id, grade(id, correct), roundId);
   return progress;
 }
@@ -51,14 +53,14 @@ test('book order follows the latest wrong answer and picking avoids the previous
 });
 
 test('older progress without an attempt log rebuilds mistakes from the current round', () => {
-  const progress = fresh();
+  const progress = freshProgress();
   progress.drill = start(bank.keys());
   for (const [id, choice] of [[progress.drill.current, 0]] as const) answer(progress.drill, bank.get(id)!, choice);
   backfillAttempts(progress, bank);
   assert.equal(progress.drillAttempts?.length, 1);
   assert.deepEqual([...mistakeBook(progress.drillAttempts).keys()], [progress.drill.current]);
 
-  const files = createProgressFiles({points:[1,2,3].map(id => ({id})), questions:[], drillQuestions:[...bank.values()], sourceHash:'x'});
+  const files = createProgressFiles({points:[1,2,3].map(id => ({id})), questions:[], drillQuestions:[...bank.values()], sourceHash:'x', epoch});
   const legacy = structuredClone(progress) as Partial<typeof progress>;
   delete legacy.drillAttempts;
   const restored = files.restore(legacy);
@@ -68,18 +70,18 @@ test('older progress without an attempt log rebuilds mistakes from the current r
 });
 
 test('mistake-book answers and the mix setting sync as operations', () => {
-  const decode = createOperationDecoder([1,2,3], [], bank);
-  const previous = fresh(), next = structuredClone(previous);
+  const decode = createOperationDecoder([1,2,3], [], bank, epoch);
+  const previous = freshProgress(), next = structuredClone(previous);
   recordAttempt(next, 2, grade(2, false), REVIEW_ROUND);
   next.settings.mixMistakes = true;
   const op = createChange(previous, next, bank);
   assert(op?.change.review);
   const decoded = decode(JSON.parse(JSON.stringify(op)));
-  const replica = fresh();
+  const replica = freshProgress();
   applyOperation(replica, decoded, bank);
   assert.equal(replica.settings.mixMistakes, true);
   assert.deepEqual([...mistakeBook(replica.drillAttempts)], [[2,0]]);
   assert.equal(replica.drillAttempts?.[0].roundId, REVIEW_ROUND);
-  assert.throws(() => decode({id:op.id, change:{time:0, review:{questionId:9, answer:grade(2, true)}}}));
+  assert.throws(() => decode({id:op.id, change:{time:0, epoch, review:{questionId:9, answer:grade(2, true)}}}));
   assert.throws(() => decode({id:op.id, change:{time:0, settings:{mixMistakes:'yes'}}}));
 });

@@ -53,7 +53,7 @@ export function SettingsDialog({progress, restore, edit, replace, download, clos
         <div className="button-row"><Button className="primary" data-action="export" onClick={download}>导出进度文件</Button>{(!cloud || cloud.empty) && <Button id="import-open" disabled={busy} onClick={() => input.current?.click()}>选择进度文件</Button>}{cloud?.login && <a className="button secondary" href="/login">重新登录</a>}</div>
         <input ref={input} id="import-file" type="file" accept=".json,application/json" hidden onChange={event => void read(event.target.files?.[0])} />
         <div id="import-preview">{candidate && (!cloud || cloud.empty) && <>
-          <p className="setting-copy" style={{marginTop:16}}>文件包含 {Object.keys(candidate.points).length} 个已练知识点、{candidate.history.length} 条练习记录、{Object.keys(candidate.labs).length} 个实验印记。{candidate.drill && ('刷题已答 ' + Object.keys(candidate.drill.answers).length + ' 题，当前第 ' + candidate.drill.current + ' 题。')}{cloud ? '确认后设为云端主档。' : '确认后替换本机进度。'}</p>
+          <p className="setting-copy" style={{marginTop:16}}>文件包含 {Object.keys(candidate.points).length} 个已练知识点、{candidate.history.length} 条练习记录、{Object.keys(candidate.labs).length} 个实验印记。{candidate.drill && ('刷题已答 ' + Object.keys(candidate.drill.answers).length + ' 题，当前第 ' + candidate.drill.current + ' 题。')}若文件来自旧题库，学习进度会按新题库重置，只保留实验印记和设置。{cloud ? '确认后设为云端主档。' : '确认后替换本机进度。'}</p>
           <div className="button-row" style={{marginTop:12}}><Button className="primary" id="confirm-import" disabled={busy} onClick={() => void confirm(candidate)}>{cloud ? '确认初始化云端主档' : '确认导入并替换'}</Button><button type="button" className="text-button" id="cancel-import" disabled={busy} onClick={() => {
             setCandidate(null);
             if (input.current) input.current.value = '';

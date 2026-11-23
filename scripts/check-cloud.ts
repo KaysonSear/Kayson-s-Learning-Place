@@ -98,6 +98,7 @@ async function main() {
       await left.getByRole('button',{name:'初始化云端'}).click();
 
       const draft = fresh();
+      draft.epoch = library.epoch;
       const round = start(library.drillQuestions.map(q => q.id));
       const {roundId: _roundId, optionVersion: _optionVersion, ...legacyRound} = round;
       const seed = {...draft,drill:legacyRound};

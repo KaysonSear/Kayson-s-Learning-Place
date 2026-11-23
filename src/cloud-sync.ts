@@ -2,12 +2,13 @@ import { openJournal } from './cloud-journal.ts';
 import type { Checkpoint, Pending } from './cloud-journal.ts';
 import { applyOperation } from './cloud-progress.ts';
 import type { CloudOperation, CloudResponse } from './cloud-types.ts';
+import { sanitizeProgress } from './progress.ts';
 import type { DrillQuestion, Progress } from './types.ts';
 
 export type CloudStatus = 'checking' | 'empty' | 'synced' | 'pending' | 'offline' | 'login' | 'error';
 type Journal = Awaited<ReturnType<typeof openJournal>>;
 
-export function connectCloud(bank: ReadonlyMap<number, DrillQuestion>, publish: (progress: Progress) => void, report: (status: CloudStatus) => void) {
+export function connectCloud(bank: ReadonlyMap<number, DrillQuestion>, epoch: string, publish: (progress: Progress) => void, report: (status: CloudStatus) => void) {
   let journal: Journal | undefined;
   let timer = 0;
   let retry = 3000;
@@ -28,7 +29,7 @@ export function connectCloud(bank: ReadonlyMap<number, DrillQuestion>, publish: 
   }
 
   function visible(checkpoint: Checkpoint, pending: Pending[]) {
-    const progress = structuredClone(checkpoint.progress);
+    const progress = sanitizeProgress(structuredClone(checkpoint.progress), epoch);
     if (progress.drill) {
       for (const [id, answer] of Object.entries(progress.drill.answerInfo ?? {})) {
         progress.drill.answers[Number(id)] = bank.get(Number(id))?.optionIds?.indexOf(answer.optionId) ?? -1;
@@ -93,8 +94,9 @@ export function connectCloud(bank: ReadonlyMap<number, DrillQuestion>, publish: 
         schedule(15000);
         return;
       }
-      const progress = checkpoint ? structuredClone(checkpoint.progress) : data.seed;
-      if (!progress) throw Error('Cloud seed is missing');
+      const rawProgress = checkpoint ? structuredClone(checkpoint.progress) : data.seed;
+      if (!rawProgress) throw Error('Cloud seed is missing');
+      const progress = sanitizeProgress(rawProgress, epoch);
       for (const op of data.operations) applyOperation(progress, op, bank);
       const cursor = data.operations.at(-1)?.seq ?? Math.max(after,0);
       await journal.accept(after, {cursor,progress}, data.operations);
@@ -151,7 +153,7 @@ export function connectCloud(bank: ReadonlyMap<number, DrillQuestion>, publish: 
     },
     async initialize(progress: Progress) {
       const response = await fetch('/api/progress/initialize', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(progress),
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(sanitizeProgress(progress, epoch)),
         credentials:'same-origin', redirect:'manual', signal:AbortSignal.timeout(20000)
       });
       if (response.status === 401 || response.type === 'opaqueredirect') { report('login'); throw Error('请重新登录后再导入。'); }

@@ -53,7 +53,13 @@ export function App({library, cloud}: {library: Library; cloud: boolean}) {
   const bank = useMemo(() => new Map(library.drillQuestions.map(q => [q.id, q])), [library]);
   const progressFiles = useMemo(() => createProgressFiles(library), [library]);
   const storage = useMemo(() => openStorage(() => window.localStorage, progressFiles.restore), [progressFiles]);
-  const [progress, setProgress] = useState(() => storage.load() ?? engine.fresh());
+  const [progress, setProgress] = useState(() => {
+    const loaded = storage.load();
+    if (loaded) return loaded;
+    const initial = engine.fresh();
+    initial.epoch = library.epoch;
+    return initial;
+  });
   const current = useRef(progress);
   const connection = useRef<ReturnType<typeof connectCloud> | null>(null);
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>('checking');
@@ -76,7 +82,7 @@ export function App({library, cloud}: {library: Library; cloud: boolean}) {
   const lab = name.startsWith('lab-') ? getLab(name.slice(4)) : undefined;
   const selectedChapter = point?.chapter ?? chapterId ?? Number(params.get('chapter'));
   const group = /^(point|chapter|cluster)-/.test(name) ? 'knowledge' : name.startsWith('lab-') ? 'labs' : name;
-  const book = useMemo(() => mistakeBook(progress.drillAttempts), [progress.drillAttempts]);
+  const book = useMemo(() => mistakeBook(progress.drillAttempts, bank), [progress.drillAttempts, bank]);
   const navLabel = destinations.find(([id]) => id === group)?.[2] ?? '知识地图';
 
   function commit(next: Progress, replace = false) {
@@ -140,7 +146,7 @@ export function App({library, cloud}: {library: Library; cloud: boolean}) {
 
   useEffect(() => {
     if (!cloud) return;
-    const sync = connectCloud(bank, next => { current.current = next; setProgress(next); }, setCloudStatus);
+    const sync = connectCloud(bank, library.epoch, next => { current.current = next; setProgress(next); }, setCloudStatus);
     connection.current = sync;
     return () => { sync.stop(); connection.current = null; };
   }, [bank, cloud]);

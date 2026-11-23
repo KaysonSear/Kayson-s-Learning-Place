@@ -34,10 +34,20 @@ export type InteractiveExercise = QuestionCopy & Exercise;
 export interface DrillQuestion {
   id: number;
   prompt: string;
+  /** Prompt with inline Markdown and blank spans pre-rendered at build time. */
+  promptHtml?: string;
+  /** Verbatim source span with {{…}} markers, kept for fidelity checks. */
+  quote?: string;
+  blankCount?: number;
   options: string[];
   answer: number;
   explanation: string;
-  /** Explanation with inline $…$ math pre-rendered to MathML at build time. */
+  /** Authored comment shown before the source excerpt. */
+  note?: string;
+  /** The source sentence/paragraph (or table/code block) containing the cloze. */
+  excerpt?: string;
+  excerptHtml?: string;
+  /** Explanation with the note and source excerpt pre-rendered at build time. */
   explanationHtml?: string;
   legacyOptionMap: number[];
   optionIds?: string[];
@@ -50,6 +60,7 @@ export interface Library {
   version: 1;
   title: string;
   standard: 'C23';
+  epoch: string;
   sourceHash: string;
   chapters: Chapter[];
   clusters: Cluster[];
@@ -105,6 +116,8 @@ export interface DrillRound {
 }
 export interface Progress {
   schemaVersion: 1;
+  /** Question-bank epoch; absent means progress predates the current bank. */
+  epoch?: string;
   updatedAt: number;
   points: Record<number, PointProgress>;
   history: Attempt[];

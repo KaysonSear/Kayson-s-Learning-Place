@@ -1,0 +1,46 @@
+709¦`struct Book` 里同时有 `int pages` 和 `double price`，各成员仍有自己的什么？¦类型与存储
+710¦`struct point { int x; int y; } a = {3, 4}, *p = &a;` 中星号属于哪个声明器？¦p
+711¦声明 `struct Student s;` 后，访问年龄成员应写成什么？¦s.age
+712¦`struct Student s = {20, 88.5, 3};` 中 `88.5` 对应哪个成员？¦score
+713¦提供了部分聚合初值后，剩余成员会怎样？¦按规定初始化
+714¦`struct Student s = {.score = 88.5, .age = 20};` 的书写顺序与定义顺序可以怎样？¦不同
+715¦`struct Node x = {0};` 的初始化是否等同于把每个字节清零？¦N
+716¦`b = a;` 后修改 `b.x`，`a.x` 会跟着变吗？¦N
+717¦复制含数组的结构体后修改副本数组，原数组会改变吗？¦N
+718¦结构体含指针成员并整体赋值后，所指目标可能怎样？¦共享
+719¦按成绩排序时比较可以只看关键字段，但交换时必须交换什么？¦完整对象;;整条记录
+720¦`students` 是数组名，写成 `struct students[1].score` 能正确访问吗？¦N
+721¦用 `%lf` 读取 `books[i].price` 时实参应写成什么？¦&books[i].price
+722¦`printf("%d", books[i].pages)` 直接传的是什么？¦成员值
+723¦示例读取两个值后，若 `scanf` 返回值不等于 2 会怎样？¦返回 EXIT_FAILURE
+724¦`p` 是有效结构体指针时，`p->pages` 与 `(*p).pages` 是否等价？¦Y
+725¦写成 `*p.m` 时表达式会先形成什么？¦p.m
+726¦`(p + 1)->pages` 与 `p[1].pages` 选择的是哪条记录？¦下一条记录
+727¦`changeCopy` 返回副本里的年龄，这个返回动作会把副本写回调用者吗？¦N
+728¦`changeOriginal` 在 `p` 非空时执行 `p->age = 20`，修改的是谁？¦调用者的结构体
+729¦`printBook(const struct Book *p)` 能否通过 `p` 读取 `pages` 和 `price`？¦Y
+730¦`struct Student * const p` 能否通过 `p` 修改本来可修改的结构体成员？¦Y
+731¦写 `const` 时是否只要出现一个 `const` 就什么都不能动？¦N
+732¦`struct Student s` 与 `Student s` 的解析路径是否相同？¦N
+733¦自引用指针成员应写成 `Node *next` 还是 `struct Node *next`？¦struct Node *next
+734¦`struct Grade { char grade; int score; };` 在 4 字节对齐平台上，`score` 前可能插入什么？¦填充
+735¦能否从两个结构体成员相等推出每个填充字节都相同？¦N
+736¦所有成员相等的两个结构体，用 `memcmp` 比较是否一定返回零？¦N
+737¦要判断两个 `struct Grade` 的业务相等，应比较什么？¦逐个成员
+738¦`sameGrade` 中比较成绩应写哪种表达式？¦a.score == b.score
+739¦向 `union Data` 的 `i` 写入后，`d` 的存储会独立保留吗？¦N
+740¦`union { char c; double d; }` 的大小只取最大成员大小就够吗？¦N
+741¦写 `value.i` 后读 `value.d`，实际是在做什么？¦解释重叠对象表示
+742¦`WEDNESDAY` 在首项未指定的 `enum Day` 中等于多少？¦2
+743¦手工给 `MEDIUM` 赋值 10 后，后面的 `HIGH` 会从零重新计数吗？¦N
+744¦`enum Result { FAIL = 0, ERROR = 0 }` 作为定义是否合法？¦Y
+745¦`case LEFT:` 中的 `LEFT` 在 switch 中充当什么？¦分派标签
+746¦`enum Flag : unsigned char { ... }` 显式指定了什么？¦底层类型
+747¦`switch (state)` 中变量里的整数编号相对于状态是什么？¦编码
+748¦`choice == 0` 进入后执行 `a += i`，没有 break 时会继续执行哪一段？¦case 1
+749¦外层 for 内层 switch 时，内层 break 会让外层循环结束吗？¦N
+750¦已有 case 匹配时，default 标签后面的代码是否一定不执行？¦N
+751¦把 default 放在中间时，其后的代码是否可能被执行？¦Y
+752¦枚举名 FAIL 与 ERROR 都等于 0 时，能否同时作为同一 switch 的两个 case？¦N
+753¦`case 1: case 2: puts("One or two");` 中 1 和 2 共用什么？¦同一处理代码
+754¦普通 const 对象能否自动作为 case 标签的常量表达式？¦N

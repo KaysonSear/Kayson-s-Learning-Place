@@ -12,9 +12,10 @@ export const MIX_EVERY = 3;
  * (or resets its streak), and CLEAR_STREAK consecutive correct answers in any mode remove it.
  * Map order follows when each question was last answered wrong.
  */
-export function mistakeBook(attempts: readonly DrillAttempt[] = []) {
+export function mistakeBook(attempts: readonly DrillAttempt[] = [], bank?: ReadonlyMap<number, DrillQuestion>) {
   const book = new Map<number, number>();
   for (const attempt of attempts) {
+    if (bank && attempt.revision !== bank.get(attempt.questionId)?.revision) continue;
     if (!attempt.correct) {
       book.delete(attempt.questionId);
       book.set(attempt.questionId, 0);

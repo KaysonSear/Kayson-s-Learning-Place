@@ -22,6 +22,13 @@
 #drill-error { color: var(--red); margin: 8px 0 20px; font-size: .875rem; }
 #drill-error:empty { margin: 0 0 24px; }
 .drill-prompt { margin-bottom: 18px; font-size: clamp(1.2rem, 3vw, 1.7rem); }
+.drill-prompt code { background: #f3f1ef; padding: 1px 5px; }
+.drill-prompt math { font-family: math; }
+.drill-prompt .cloze-blank { display: inline-block; min-width: 2.4em; border-bottom: 2px solid currentColor; text-align: center; letter-spacing: .08em; }
+.feedback-prose .explanation-note { font-size: .95rem; font-weight: 600; margin-bottom: 12px; }
+.feedback-prose .explanation-source { font-size: .78rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 16px 0 6px; }
+.feedback-prose table { margin: 10px 0; }
+.feedback-prose pre { margin: 10px 0; }
 .drill .choice { min-width: 0; text-align: left; }
 .drill .choice > span:last-child { min-width: 0; }
 .drill .choice.correct, .drill .choice.wrong { opacity: 1; }

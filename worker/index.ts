@@ -13,7 +13,7 @@ interface Env {
 
 const bank = new Map(catalog.drillQuestions.map(question => [question.id, question]));
 const files = createProgressFiles(catalog);
-const decodeOperation = createOperationDecoder(catalog.points.map(p => p.id), catalog.questions.map(q => q.id), bank);
+const decodeOperation = createOperationDecoder(catalog.points.map(p => p.id), catalog.questions.map(q => q.id), bank, catalog.epoch);
 const maxBackup = 4 * 1024 * 1024;
 const baseHeaders = {'Cache-Control':'private, no-store', 'X-Content-Type-Options':'nosniff', 'Referrer-Policy':'same-origin'};
 

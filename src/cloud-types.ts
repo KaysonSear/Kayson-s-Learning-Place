@@ -23,6 +23,8 @@ export interface DrillPosition {
 
 export interface CloudChange {
   time: number;
+  /** Question-bank epoch; absent means a legacy client or legacy stored operation. */
+  epoch?: string;
   session?: Session | null;
   attempts?: Attempt[];
   completedRounds?: number;

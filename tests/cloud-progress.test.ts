@@ -11,12 +11,14 @@ const makeQuestion = (id: number): DrillQuestion => ({
 });
 const question = makeQuestion(1);
 const bank = new Map([[1,question]]);
-const decode = createOperationDecoder([1], ['p1-a','p1-b'], bank);
+const epoch = 'test-epoch';
+const freshProgress = () => { const progress = fresh(); progress.epoch = epoch; return progress; };
+const decode = createOperationDecoder([1], ['p1-a','p1-b'], bank, epoch);
 const first = '11111111-1111-4111-8111-111111111111';
 const second = '22222222-2222-4222-8222-222222222222';
 
 test('concurrent drill answers retain both events and preserve the first score', () => {
-  const seed = fresh();
+  const seed = freshProgress();
   seed.drill = start([1]);
   const a = structuredClone(seed), b = structuredClone(seed);
   assert(answer(a.drill!, question, 1));
@@ -31,7 +33,7 @@ test('concurrent drill answers retain both events and preserve the first score',
 });
 
 test('new rounds use the new catalog and old round answers cannot reactivate a previous round', () => {
-  const original = fresh();
+  const original = freshProgress();
   original.drill = start([1]);
   const other = structuredClone(original);
   assert(answer(other.drill!, question, 0));
@@ -57,7 +59,7 @@ test('legacy and current selections survive option reordering with their recorde
   assert.equal(restore(legacy,modified)?.answers[1],0);
   const v2 = {...legacy, optionVersion:2, answers:{1:1}};
   assert.equal(restore(v2,modified)?.answers[1],0);
-  const progress = fresh();
+  const progress = freshProgress();
   progress.drill = {...start([1]),answers:{1:1}};
   const seed = prepareSeed(progress,bank);
   const restored = restore(seed.drill,modified);
@@ -66,7 +68,7 @@ test('legacy and current selections survive option reordering with their recorde
 });
 
 test('practice evidence, settings, lab marks and resume position are rebuilt from operations', () => {
-  const previous = fresh(), next = structuredClone(previous);
+  const previous = freshProgress(), next = structuredClone(previous);
   const question = {id:'p1-a',pointId:1,stage:'a',revision:'f'.repeat(24)} as const;
   record(next,question,{correct:true},next.updatedAt);
   next.lastPoint = 1;
@@ -77,5 +79,5 @@ test('practice evidence, settings, lab marks and resume position are rebuilt fro
   assert(op);
   applyOperation(previous,decode(op),bank);
   assert.deepEqual(previous,next);
-  assert.throws(() => decode({id:first,change:{time:0,drill:{roundId:second,position:{mode:'random',order:[2],current:2,finished:false}}}}));
+  assert.throws(() => decode({id:first,change:{time:0,epoch,drill:{roundId:second,position:{mode:'random',order:[2],current:2,finished:false}}}}));
 });

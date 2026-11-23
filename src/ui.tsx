@@ -10,6 +10,7 @@ export function Prose({html, className = ''}: {html: string; className?: string}
 }
 
 export function Explanation({question, point}: {question: Question | DrillQuestion; point: Point | undefined}) {
+  if ('excerptHtml' in question && question.excerptHtml) return <Prose html={question.explanationHtml ?? ''} className="feedback-prose" />;
   if (question.sourceTable && point) return <Prose html={point.html} className="feedback-prose" />;
   return question.explanationHtml ? <p dangerouslySetInnerHTML={{__html: question.explanationHtml}} /> : <p>{question.explanation}</p>;
 }

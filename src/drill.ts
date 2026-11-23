@@ -101,6 +101,7 @@ export function restore(value: unknown, bank: ReadonlyMap<number, DrillQuestion>
   const answers: Record<number, number> = {};
   const info: Record<number, DrillAnswer> = {};
   const orderIds = new Set(order);
+  let dropped = false;
   if (value.answerInfo !== undefined && !isObject(value.answerInfo)) throw Error('刷题判分记录格式无效。');
   for (const [key, choice] of Object.entries(value.answers)) {
     if (typeof choice !== "number" || !Number.isInteger(choice)) throw Error("刷题答案格式无效。");
@@ -109,6 +110,7 @@ export function restore(value: unknown, bank: ReadonlyMap<number, DrillQuestion>
     const recorded = value.answerInfo?.[key];
     if (recorded !== undefined) {
       if (!isDrillAnswer(recorded)) throw Error('刷题判分记录格式无效。');
+      if (question.revision && recorded.revision !== question.revision) { dropped = true; continue; }
       info[question.id] = recorded;
       answers[question.id] = question.optionIds?.indexOf(recorded.optionId) ?? choice;
       continue;
@@ -127,8 +129,8 @@ export function restore(value: unknown, bank: ReadonlyMap<number, DrillQuestion>
     if (!Number.isInteger(restoredChoice) || restoredChoice < 0 || restoredChoice >= question.options.length) throw Error('刷题答案格式无效。');
     answers[question.id] = restoredChoice;
   }
-  if (value.finished && Object.keys(answers).length !== order.length) throw Error('刷题完成记录无效。');
+  if (!dropped && value.finished && Object.keys(answers).length !== order.length) throw Error('刷题完成记录无效。');
   if (value.roundId !== undefined && (typeof value.roundId !== 'string' || !/^[a-f0-9-]{36}$/.test(value.roundId))) throw Error('刷题轮次编号无效。');
-  return { mode: value.mode, order: [...order], current: value.current, answers, finished: value.finished, optionVersion: OPTION_VERSION,
+  return { mode: value.mode, order: [...order], current: value.current, answers, finished: dropped ? false : value.finished, optionVersion: OPTION_VERSION,
     ...(value.roundId ? {roundId:value.roundId} : {}), ...(Object.keys(info).length ? {answerInfo:info} : {}) };
 }
