@@ -51,3 +51,16 @@ test('backup keeps random order, pointer and recorded choices, and rejects inval
   assert.throws(() => drill.restore({ ...round, answers: { 288: 2 } }, bank));
   assert.throws(() => drill.restore({ ...round, finished: true }, bank));
 });
+
+test('option display order is a seeded permutation that varies between appearances', () => {
+  const seen = new Map<string, number>();
+  for (let i = 0; i < 1000; i++) {
+    const order = drill.displayOrder(4, 'round-' + i + ':57');
+    assert.deepEqual([...order].sort(), [0, 1, 2, 3]);
+    seen.set(order.join(), (seen.get(order.join()) ?? 0) + 1);
+  }
+  assert.equal(seen.size, 24);
+  assert(Math.min(...seen.values()) > 15 && Math.max(...seen.values()) < 70);
+  assert.deepEqual(drill.displayOrder(4, 'same'), drill.displayOrder(4, 'same'));
+  assert.deepEqual(drill.displayOrder(2, 'x').sort(), [0, 1]);
+});

@@ -1,33 +1,7 @@
 import { Fragment, useState } from 'react';
 import { getEvidence } from './engine.ts';
 import { Button, Prose } from './ui.tsx';
-import type { Chapter, Library, Point, Progress, Scope } from './types.ts';
-
-const demo = [3, 1, 4, 2];
-
-export function Home({library, progress, start, toast}: {library: Library; progress: Progress; start: () => void; toast: (message: string) => void}) {
-  const [index, setIndex] = useState(0);
-  const resume = progress.session && progress.session.index < progress.session.queue.length;
-  const totals = stats(progress);
-  return <>
-    {resume && progress.session && <div className="resume-banner"><span>上次那一轮，停在第 {progress.session.index + 1} 题。可以从这里接着来。</span><a className="text-button" href="#quiz">继续</a></div>}
-    <section className="hero">
-      <div><p className="eyebrow">不用一次学完。只向前一点。</p><h1>今天，<br />只做三题。</h1><p className="subline">先猜一猜，再动手验证。<br />把看懂的 C，变成自己会用的 C。</p>
-        <div className="button-row"><Button className="primary" data-action={resume ? 'resume' : 'start'} onClick={() => resume ? location.hash = 'quiz' : start()}>{resume ? '继续上次' : '开始 3 题'}</Button>
-          <a className="button secondary" href="#drill">{progress.drill ? '继续刷题' : '刷题'}</a><a className="text-button" href="#knowledge">自己选一章</a></div><p className="hero-note">约 2–5 分钟 · 没有倒计时 · 随时可以停</p></div>
-      <div className="hero-workbench"><div className="workbench-label"><span>摸一下指针</span><span>一个可操作的小模型</span></div><pre><code>{'int a[4] = { 3, 1, 4, 2 };\nint *p = a;\np++;'}</code></pre>
-        <div id="hero-memory" className="hero-memory">{[...demo, '尾后'].map((value, i) => <div key={i} className={['hero-cell', i === index && 'selected', i === 4 && 'end'].filter(Boolean).join(' ')}>{value}<small>{i === 4 ? 'a + 4' : 'a[' + i + ']'}</small></div>)}</div>
-        <div className="hero-lab-actions"><button type="button" className="text-button" data-action="hero-back" onClick={() => setIndex(Math.max(0, index - 1))}>退一步</button><Button className="secondary small" data-action="hero-next" onClick={() => index < 4 ? setIndex(index + 1) : toast('已经到达尾后位置，不能继续向前。')}>p++ 前进一步</Button></div>
-        <p id="hero-feedback" className="hero-feedback" aria-live="polite">{index === 4 ? 'p 可以位于尾后，但不能解引用。再执行 p++ 会越出允许范围。' : '现在 p 指向 a[' + index + ']，*p 是 ' + demo[index] + '。图中每格代表一个 int 对象，步长不固定为 1 字节。'}</p>
-      </div>
-    </section>
-    <section className="home-section"><div className="section-head"><h2>这一轮，很简单。</h2><small>{totals.due ? totals.due + ' 个知识点到了复习时间' : '从一个小问题开始'}</small></div>
-      <div className="round-line">{[['先做判断','不用急着翻答案。'],['看到原因','错在哪里，具体说清楚。'],['带走一点能力','下次换个情境再验证。']].map(([title, copy], i) => <div key={title} className="round-step"><span>{i + 1}</span><div><strong>{title}</strong><p>{copy}</p></div></div>)}</div></section>
-    <section className="home-section"><div className="section-head"><h2>或者，先动手。</h2><a className="text-button" href="#labs">全部实验</a></div>
-      <div className="topic-list"><a className="topic-link" href="#lab-pointers"><span>指针往前一步，究竟移动了什么？</span><small>指针工作台 ↗</small></a><a className="topic-link" href="#lab-resources"><span>释放以后，另一个指针还能用吗？</span><small>资源维修台 ↗</small></a><a className="topic-link" href="#lab-calls"><span>递归返回时，谁在等着谁？</span><small>调用栈 ↗</small></a></div></section>
-    <div className="home-stats"><span><strong>{library.points.length}</strong>知识点</span><span><strong>{library.questions.length}</strong>专属练习</span><span><strong>{totals.independent}</strong>独立通过</span><span><strong>{totals.transfer}</strong>迁移通过</span></div>
-  </>;
-}
+import type { Chapter, Library, Point, Progress } from './types.ts';
 
 function stats(progress: Progress) {
   const items = Object.values(progress.points);
@@ -74,11 +48,11 @@ export function Knowledge({library, progress, params}: {library: Library; progre
   </>;
 }
 
-export function ChapterView({library, chapter, progress, start}: {library: Library; chapter: Chapter; progress: Progress; start: (scope: Scope) => void}) {
+export function ChapterView({library, chapter, progress}: {library: Library; chapter: Chapter; progress: Progress}) {
   return <>
     <div className="reading-head"><a className="text-button" href="#knowledge">全部知识</a><h1>{chapter.title}</h1>
-      <p className="subline">{chapter.pointIds.length} 个知识点 · {chapter.pointIds.length * 2} 道专属练习 · 全部可自由进入</p>
-      <div className="button-row" style={{marginTop:24}}><Button className="primary" data-action="start-chapter" data-chapter={chapter.id} onClick={() => start({chapter:chapter.id})}>这一章，做 3 题</Button><a className="button secondary" href={'#lab-' + chapter.labId}>进入对应实验</a></div>
+      <p className="subline">{chapter.pointIds.length} 个知识点 · 刷题第 {chapter.pointIds[0]}–{chapter.pointIds.at(-1)} 题 · 全部可自由进入</p>
+      <div className="button-row" style={{marginTop:24}}><a className="button primary" data-action="drill-chapter" href={'#drill?jump=' + chapter.pointIds[0]}>从这一章开始刷题</a><a className="button secondary" href={'#lab-' + chapter.labId}>进入对应实验</a></div>
     </div><Prose html={chapter.html} />
     {library.clusters.filter(c => c.chapter === chapter.id).map(cluster => <section key={cluster.id} className="cluster-group" id={'cluster-row-' + cluster.id}>
       <h2>{cluster.title}</h2><details className="source-details"><summary>知识图与目录</summary><Prose html={cluster.html} /></details>
@@ -87,14 +61,14 @@ export function ChapterView({library, chapter, progress, start}: {library: Libra
   </>;
 }
 
-export function PointView({library, point, points, progress, start}: {library: Library; point: Point; points: ReadonlyMap<number,Point>; progress: Progress; start: (scope: Scope) => void}) {
+export function PointView({library, point, points, progress}: {library: Library; point: Point; points: ReadonlyMap<number,Point>; progress: Progress}) {
   const chapter = library.chapters.find(c => c.id === point.chapter);
   const previous = points.get(point.id - 1), next = points.get(point.id + 1);
   return <>
     <div className="reading-head"><a className="text-button" href={'#chapter-' + point.chapter}>{chapter?.title}</a><h1>{point.title}</h1><p className="subline">知识点 {point.id} · {library.clusters.find(c => c.id === point.cluster)?.title}</p></div>
     <div className="reading-layout"><article className="prose" dangerouslySetInnerHTML={{__html: point.html}} /><aside className="reading-aside">
-      <EvidenceTag progress={progress} id={point.id} /><Button className="primary" data-action="start-point" data-point={point.id} onClick={() => start({pointId:point.id})}>验证这个知识点</Button>
-      {chapter && <a className="button secondary" href={'#lab-' + chapter.labId}>动手实验</a>}<p>阅读帮助理解；独立作答和隔日迁移，才积累掌握证据。</p>
+      <EvidenceTag progress={progress} id={point.id} /><a className="button primary" data-action="drill-point" href={'#drill?jump=' + point.id}>刷第 {point.id} 题</a>
+      {chapter && <a className="button secondary" href={'#lab-' + chapter.labId}>动手实验</a>}<p>每个知识点对应一道刷题。答错会自动收进错题本。</p>
     </aside></div>
     <nav className="reading-pagination" aria-label="相邻知识点">{previous ? <a href={'#point-' + previous.id}>← {previous.title}</a> : <span />}{next && <a href={'#point-' + next.id}>{next.title} →</a>}</nav>
   </>;

@@ -1,0 +1,264 @@
+{
+  "format": "cloze-bank-v1",
+  "chapter": 17,
+  "questions": [
+    {
+      "pointId": 852,
+      "quote": "fopen 成功返回的值指向管理该流的 {{FILE 控制对象}}，不是磁盘正文起始字节。",
+      "options": [["FILE 控制对象"], ["磁盘文件本身"], ["缓冲区首字节"], ["文件路径字符串"]],
+      "note": "fopen 返回的是指向 FILE 控制对象的指针，控制对象管理一条流；它并不指向磁盘上的正文起始字节，也不是路径字符串。"
+    },
+    {
+      "pointId": 853,
+      "quote": "把外部文件看成仓库，流是业务通道，FILE 对象是{{管理处的记录和控制面板}}，fp 是管理处地址。",
+      "options": [["管理处的记录和控制面板"], ["外部文件本身的副本"], ["磁盘上的正文数据"], ["业务通道里的字排队列"]],
+      "note": "在这个类比里 FILE 对象就是管理处的记录和控制面板，fp 只是它的地址；外部文件和正文数据都在更外层，字排队列属于流的内容。"
+    },
+    {
+      "pointId": 854,
+      "quote": "stdin 的英文是 {{standard input}}，用于接收输入；",
+      "options": [["standard input"], ["standard error"], ["standard output"], ["stream input"]],
+      "note": "stdin 是 standard input，即标准输入流；standard error 和 standard output 分别是 stderr 与 stdout。"
+    },
+    {
+      "pointId": 855,
+      "quote": "stdout（{{standard output}}）用于正常结果，终端运行时通常显示在终端，也可能被重定向到文件或其他接收方。",
+      "options": [["standard output"], ["standard input"], ["standard error"], ["system output"]],
+      "note": "stdout 是 standard output，承载正常结果；standard input 是 stdin，standard error 是 stderr。"
+    },
+    {
+      "pointId": 856,
+      "quote": "stderr（{{standard error}}）用于错误和诊断。",
+      "options": [["standard error"], ["standard output"], ["standard input"], ["system error"]],
+      "note": "stderr 是 standard error，专门承载错误和诊断信息，与只有正常结果的 stdout 分开。"
+    },
+    {
+      "pointId": 857,
+      "quote": "fopen 的 filename 是{{路径字符串}}；",
+      "options": [["路径字符串"], ["FILE 对象"], ["文件正文"], ["文件描述符"]],
+      "note": "filename 是交给运行环境按路径解释的字符串，不是文件本身；FILE 对象由 fopen 在内部建立，文件正文更不在参数里。"
+    },
+    {
+      "pointId": 858,
+      "quote": "它被作为 fopen 的{{模式参数}}后才表示写入。",
+      "options": [["模式参数"], ["文件名参数"], ["返回值"], ["文件正文"]],
+      "note": "字符 w 只有作为 fopen 的模式参数时才表达写入；脱离具体接口，它只是普通字符，文件名参数和返回值都不承载这个含义。"
+    },
+    {
+      "pointId": 859,
+      "quote": "实际原型要求文件名与模式{{两个实参}}；应写如",
+      "options": [["两个实参"], ["一个实参"], ["三个实参"], ["可变个实参"]],
+      "note": "fopen 的原型要求文件名和模式两个实参；介绍文字里的空括号是函数简称，不能原样当作合法调用。"
+    },
+    {
+      "pointId": 860,
+      "quote": "交回结果：成功返回 FILE 控制对象指针；失败返回{{空指针}}",
+      "options": [["空指针"], ["EOF"], ["零字节文件"], ["有效流句柄"]],
+      "note": "fopen 成功返回 FILE 控制对象指针，失败返回空指针；EOF 是字符输入函数的失败/结束标记，不是这里的返回值。"
+    },
+    {
+      "pointId": 861,
+      "quote": "函数不知道调用者会把返回值保存到 fp、second 还是别的变量；它只按接口返回一个{{指针值}}。",
+      "options": [["指针值"], ["变量名"], ["文件名"], ["字符个数"]],
+      "note": "函数只返回一个指针值，不知道调用者给它起什么变量名；变量名属于调用者的声明，不由被调用函数决定。"
+    },
+    {
+      "pointId": 862,
+      "quote": "条件应写 `{{fp == NULL}}`，不是赋值 `fp = NULL`",
+      "options": [["fp == NULL"], ["fp = NULL"], ["fp != NULL"], ["fp == EOF"]],
+      "note": "判断打开失败要用相等比较 fp == NULL；单个等号是赋值，会把 fp 改成空指针并丢失原返回值。"
+    },
+    {
+      "pointId": 863,
+      "quote": "以 r/rb 打开已有文件读取；文件不存在时{{打开失败}}，不会悄悄创建。",
+      "options": [["打开失败"], ["创建空文件"], ["返回 EOF"], ["截断原文件"]],
+      "note": "r/rb 只读取已有文件，缺失时打开失败，不会创建空文件；创建和截断属于 w/wb 的行为。"
+    },
+    {
+      "pointId": 864,
+      "quote": "w/wb 在文件不存在时尝试创建，已有文件则{{截断原内容}}后重新写入。",
+      "options": [["截断原内容"], ["保留原内容"], ["追加到末尾"], ["另存为新文件"]],
+      "note": "w/wb 成功打开已有文件时会截断原内容，相当于换一本空本子；保留并追加是 a/ab 的行为。"
+    },
+    {
+      "pointId": 865,
+      "quote": "a/ab 在文件不存在时尝试创建，已有内容{{保留}}，写入落在末尾。",
+      "options": [["保留"], ["截断"], ["清空"], ["移动到备份"]],
+      "note": "a/ab 追加写入，已有内容保留并写到末尾；截断和清空是 w/wb 打开已有文件时的效果。"
+    },
+    {
+      "pointId": 866,
+      "quote": "模式中的 b 是 {{binary}}。wb 表示二进制写入，rb 表示二进制读取",
+      "options": [["binary"], ["boolean"], ["byte"], ["backup"]],
+      "note": "b 是 binary，表示按二进制方式处理；它不是布尔标志，也不只是写字符 0 和 1。"
+    },
+    {
+      "pointId": 867,
+      "quote": "原始文件字节常放在 {{unsigned char}} 数组中",
+      "options": [["unsigned char"], ["signed char"], ["int"], ["unsigned int"]],
+      "note": "原始字节用 unsigned char 数组承载，每个元素恰是一个 C 字节；int 和 unsigned int 的元素大小通常不止一字节。"
+    },
+    {
+      "pointId": 868,
+      "quote": "| `rb+` / `r+b` | {{读写}} | {{打开失败}} | 保留 |",
+      "options": [["读写", "打开失败"], ["只写", "创建"], ["读写", "创建"], ["只读", "保留"]],
+      "note": "rb+ 保留内容且可读可写，但文件必须已存在，缺失时打开失败；可读可写并不附带创建能力。"
+    },
+    {
+      "pointId": 869,
+      "quote": "C11 起支持 {{wx/wbx}} 等排他创建：目标已存在就失败，不像 w/wb 会截断。",
+      "options": [["wx/wbx"], ["w/wb"], ["r/rb"], ["a/ab"]],
+      "note": "wx/wbx 是排他创建，目标已存在就失败；w/wb 遇到已有文件会截断，不能表达不覆盖的契约。"
+    },
+    {
+      "pointId": 870,
+      "quote": "在main里表达程序失败，使用{{EXIT_FAILURE}}更可移植。",
+      "options": [["EXIT_FAILURE"], ["EXIT_SUCCESS"], ["NULL"], ["EOF"]],
+      "note": "main 中表达程序失败应返回 EXIT_FAILURE，可移植性最好；EXIT_SUCCESS 表示成功，NULL 和 EOF 都不是退出状态。"
+    },
+    {
+      "pointId": 871,
+      "quote": "fgetc 成功取得一个字符后，将其 {{unsigned char 值}}转换为 int 返回。",
+      "options": [["unsigned char 值"], ["char 值"], ["int 值"], ["EOF 标记"]],
+      "note": "fgetc 把字符的 unsigned char 值转换为 int 返回，返回域还要容纳 EOF；若提前缩成 char，就可能与 EOF 混淆。"
+    },
+    {
+      "pointId": 872,
+      "quote": "fgetc 到文件尾或发生读取错误都可返回 {{EOF}}。",
+      "options": [["EOF"], ["NULL"], ["0"], ["errno"]],
+      "note": "EOF 既可能表示文件尾，也可能表示读取错误，所以它不唯一表示正常结束；NULL 和 errno 都不是 fgetc 的返回标记。"
+    },
+    {
+      "pointId": 873,
+      "quote": "getchar() 在读取来源上相当于 {{fgetc(stdin)}}：取得标准输入流的下一个字符",
+      "options": [["fgetc(stdin)"], ["fgets(stdin)"], ["fgetc(stdout)"], ["getc(stdout)"]],
+      "note": "getchar 相当于不带流参数的 fgetc(stdin)，从标准输入读一个字符；fgetc(stdout) 和 getc(stdout) 指向输出流。"
+    },
+    {
+      "pointId": 874,
+      "quote": "getchar 一次取得一个字符，{{空格和换行也会被读走}}，不像 scanf 的 %d 先跳前导空白。",
+      "options": [["空格和换行也会被读走"], ["前导空白会被跳过"], ["换行会被自动丢弃"], ["只取得可见字符"]],
+      "note": "getchar 不做空白过滤，空格和换行都会原样读走；跳过前导空白是 scanf 的 %d 一类格式的行为。"
+    },
+    {
+      "pointId": 875,
+      "quote": "putchar(ch) 向 stdout 输出一个字符，相当于 {{putc(ch, stdout)}}，不自动添加换行。",
+      "options": [["putc(ch, stdout)"], ["fputc(ch, stdin)"], ["puts(ch)"], ["printf(ch)"]],
+      "note": "putchar(ch) 等价于 putc(ch, stdout)，只输出一个字符且不加换行；puts 会追加换行，fputc(ch, stdin) 写错了流。"
+    },
+    {
+      "pointId": 876,
+      "quote": "fputc(ch, fp) 向指定流写字符，返回 int：成功返回写入字符对应的值，失败返回 {{EOF}}。",
+      "options": [["EOF"], ["NULL"], ["0"], ["1"]],
+      "note": "fputc 失败返回 EOF，成功返回写入字符对应的值，不是布尔式的 1；判断失败要按 EOF 契约。"
+    },
+    {
+      "pointId": 877,
+      "quote": "fgets(buffer, capacity, fp) 最多读取 {{capacity-1}} 个字符并为终止符留空间",
+      "options": [["capacity-1"], ["capacity"], ["capacity+1"], ["capacity-2"]],
+      "note": "fgets 最多读 capacity-1 个字符，剩余一个位置放终止符；char text[6] 因此最多读 5 个字符。"
+    },
+    {
+      "pointId": 878,
+      "quote": "| `getchar()` | 一个字符或 EOF | 空格和换行都可{{原样读到}} | 返回 `int`，便于区分字符值和 EOF |",
+      "options": [["原样读到"], ["自动跳过"], ["被丢弃"], ["合并为单词"]],
+      "note": "getchar 把空格和换行也原样读入，不自动跳过或丢弃；跳过空白、按单词切分是 scanf 的行为。"
+    },
+    {
+      "pointId": 879,
+      "quote": "fgets 读到换行时，会把{{换行本身}}放进数组，然后再补字符串终止符。",
+      "options": [["换行本身"], ["字符串终止符"], ["一个空格"], ["行号"]],
+      "note": "fgets 把读到的换行也存进数组，再补终止符；因此配合不加换行的 fputs 可保留原有行结构。"
+    },
+    {
+      "pointId": 880,
+      "quote": "fgets 不保证一次取得{{完整一行}}。",
+      "options": [["完整一行"], ["全部文件字节"], ["字符串终止符"], ["换行符"]],
+      "note": "数组容量不足时 fgets 只读前段，剩余字符仍在流里，所以不能把每次调用都当作一整行。"
+    },
+    {
+      "pointId": 881,
+      "quote": "fgets 成功返回{{目标数组起点指针}}，EOF且一个字符也未读到或发生读取错误时返回 NULL；返回值不是字符数。",
+      "options": [["目标数组起点指针"], ["读取的字符数"], ["换行符的位置"], ["缓冲区的容量"]],
+      "note": "fgets 成功返回数组起点指针，失败返回 NULL；返回值不是字符数，判断是否读到内容要用是否等于 NULL。"
+    },
+    {
+      "pointId": 882,
+      "quote": "正常 EOF 且一个字符也没取到时，fgets 返回 NULL，数组原内容{{保持不变}}。",
+      "options": [["保持不变"], ["被清空"], ["填入 EOF"], ["变成空字符串"]],
+      "note": "正常 EOF 且未读到字符时 fgets 返回 NULL，数组保留旧内容；打印出的旧文字不是本次从文件读到的新数据。"
+    },
+    {
+      "pointId": 883,
+      "quote": "fgets 因读取错误失败时返回 NULL，数组内容{{不确定}}",
+      "options": [["不确定"], ["保持不变"], ["已清空"], ["仍是原字符串"]],
+      "note": "读取错误时数组内容不确定，不能依赖旧内容或假定仍有有效终止符；这与正常 EOF 保留旧数组不同。"
+    },
+    {
+      "pointId": 884,
+      "quote": "若函数形参已调整成指针，sizeof 得到{{指针对象大小}}",
+      "options": [["指针对象大小"], ["整个数组容量"], ["字符串长度"], ["元素个数"]],
+      "note": "形参退化为指针后，sizeof 得到的是指针对象大小而非原数组容量；容量需由接口另行传入。"
+    },
+    {
+      "pointId": 885,
+      "quote": "puts(text)固定向{{stdout}}输出终止字符串，并自动在末尾加一个换行。",
+      "options": [["stdout"], ["stderr"], ["fp 指定的流"], ["当前输入流"]],
+      "note": "puts 固定写 stdout 并自动追加换行，不能指定流；要写指定流或不加换行应使用 fputs。"
+    },
+    {
+      "pointId": 886,
+      "quote": "fputs(text,fp)接收来源字符串起点和目标流，输出到{{指定流}}而不是固定stdout。",
+      "options": [["指定流"], ["stdout"], ["stderr"], ["内存缓冲区"]],
+      "note": "fputs 的输出目标是调用者给出的流，因此可写 stdout 之外的流；只有 puts 才固定在 stdout。"
+    },
+    {
+      "pointId": 887,
+      "quote": "fputs 在来源首个 {{\\0}} 前结束写出，不把这个终止符写入文件。",
+      "options": [["\\0"], ["\\n"], ["EOF"], ["空格"]],
+      "note": "fputs 把来源当作 C 字符串，在首个空字符处停止且不写出该终止符；因此不适合搬运中间含零的二进制缓冲区。"
+    },
+    {
+      "pointId": 888,
+      "quote": "fprintf(fp, format, ...) 按 format 把后面数据格式化，送到 {{fp 指定的流}}。",
+      "options": [["fp 指定的流"], ["固定的 stdout"], ["调用者的缓冲区"], ["标准错误流"]],
+      "note": "fprintf 按 fp 决定输出目标，流可关联磁盘文件，也可以是 stdout 或 stderr；格式串只决定内容与规则。"
+    },
+    {
+      "pointId": 889,
+      "quote": "fprintf成功返回{{输出的字符数}}，发生输出错误时返回负值",
+      "options": [["输出的字符数"], ["1"], ["任意非负数"], ["EOF"]],
+      "note": "fprintf 成功返回实际输出的字符数，出错返回负值；它不像 fputs 那样只区分成功与非负状态。"
+    },
+    {
+      "pointId": 890,
+      "quote": "标准库没有“参数一律按同顺序”的宇宙规则，每个原型都是自己的{{插槽合同}}：",
+      "options": [["插槽合同"], ["统一顺序"], ["返回值约定"], ["参数个数"]],
+      "note": "每个函数原型各自规定参数插槽，不能按另一个函数的顺序类推；fputs 和 fprintf 的参数顺序并不相同。"
+    },
+    {
+      "pointId": 891,
+      "quote": "双引号是{{源代码语法}}，不是文件内容",
+      "options": [["源代码语法"], ["文件内容"], ["转义字符"], ["字符串终止符"]],
+      "note": "双引号只是 C 源代码的字符串语法，不会写进文件；文件实际得到的是字符 A 后跟换行。"
+    },
+    {
+      "pointId": 892,
+      "quote": "其中即使有百分号，也不是一套新的{{printf格式}}。",
+      "options": [["printf格式"], ["转义序列"], ["正则表达式"], ["格式化状态"]],
+      "note": "fputs 直接写出字符串，不解释百分号；只有 fprintf 一类格式化输出才把 % 当格式说明。"
+    },
+    {
+      "pointId": 893,
+      "quote": "puts把来源\\0作为字符串边界，不把它写到stdout；自动添加的是{{换行}}，不是一个新的可见“字符串结束符”。",
+      "options": [["换行"], ["终止符"], ["空格"], ["回车"]],
+      "note": "puts 以空字符作为字符串边界，不写出该字符；它自动追加的是换行，不是可见的结束符。"
+    },
+    {
+      "pointId": 894,
+      "quote": "puts成功返回{{非负int}}，失败返回EOF。",
+      "options": [["非负int"], ["字符数"], ["1"], ["NULL"]],
+      "note": "puts 成功返回非负 int，失败返回 EOF；成功值不承诺是输出字符数，也不能当 printf 的计数使用。"
+    }
+  ]
+}

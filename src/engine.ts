@@ -35,7 +35,8 @@ export function record(state: Progress, q: QuestionRef, {correct,assisted=false,
       }
     }else if(q.stage==='b'&&!p.base){p.due=now;}else p.due=Math.max(p.due,nextDay(now));
   }
-  state.history.push(entry);state.updatedAt=now;return entry;
+  const attempt = q.revision ? {...entry,revision:q.revision} : entry;
+  state.history.push(attempt);state.updatedAt=now;return attempt;
 }
 function chooseQuestion(state: Progress, point: {id: number}, questions: QuestionRef[], now: number){const p=state.points[point.id];const stage=p?.base&&day(now)>p.base.day?'b':'a';return questions.find(q=>q.pointId===point.id&&q.stage===stage);}
 export function queue(state: Progress, points: {id: number; chapter: number}[], questions: QuestionRef[], {chapter=null,pointId=null,now=Date.now()}: Scope & {now?: number}={}){
@@ -71,12 +72,14 @@ export function validateImport(value: unknown, pointIds: number[], questionIds: 
   }
   clean.history=value.history.map((item: unknown): Attempt=>{
     if(!isObject(item)||!validPoints.has(String(item.pointId))||!questionMatches(item.questionId,item.pointId,item.stage)||item.stage!=='a'&&item.stage!=='b'||!isTime(item.time)||typeof item.correct!=='boolean'||typeof item.assisted!=='boolean'||typeof item.skipped!=='boolean'||item.skipped&&item.correct)fail('作答历史格式无效。');
-    return {questionId:item.questionId,pointId:Number(item.pointId),stage:item.stage,correct:item.correct,assisted:item.assisted||item.skipped,skipped:item.skipped,time:item.time};
+    const revision = typeof item.revision === 'string' && /^[a-f0-9]{24}$/.test(item.revision) ? item.revision : undefined;
+    return {questionId:item.questionId,pointId:Number(item.pointId),stage:item.stage,correct:item.correct,assisted:item.assisted||item.skipped,skipped:item.skipped,time:item.time,...(revision ? {revision} : {})};
   });
   if(value.labs!==undefined&&!isObject(value.labs))fail('实验记录格式无效。');
   for(const [id,time] of Object.entries(value.labs||{})){if(!LAB_IDS.has(id)||!isTime(time))fail('实验记录格式无效。');clean.labs[id]=time;}
   if(value.settings!==undefined&&!isObject(value.settings))fail('设置格式无效。');
   clean.settings={reduceMotion:!!value.settings?.reduceMotion,textSize:typeof value.settings?.textSize === "number" && [1,1.1,1.2].includes(value.settings.textSize)?value.settings.textSize:1};
+  if(value.settings?.mixMistakes===true)clean.settings.mixMistakes=true;
   if(value.rounds!==undefined&&(typeof value.rounds !== "number"||!Number.isSafeInteger(value.rounds)||value.rounds<0))fail('完成轮次格式无效。');
   clean.rounds=value.rounds||0;
   if(value.session!==null&&value.session!==undefined){

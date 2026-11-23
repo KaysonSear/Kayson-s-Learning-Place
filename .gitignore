@@ -3,11 +3,14 @@ node_modules/
 /dist/
 /dist-cloud/
 /content/library.json
+/content/sync-catalog.json
+/content/*.json.*.tmp
 /tests/browser-report.json
 /tests/content-report.json
 /tests/*-desktop.png
 /tests/*-mobile.png
 .wrangler/
+/.wrangler.preview.json
 .dev.vars*
 .env*
 C-Lab-progress-*.json

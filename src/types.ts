@@ -1,3 +1,5 @@
+import type { DrillAnswer, DrillAttempt } from './cloud-types.ts';
+
 export interface SourceSection {
   title: string;
   markdown: string;
@@ -19,8 +21,8 @@ export interface Cluster extends SourceSection {
   chapter: number;
 }
 export type Stage = 'a' | 'b';
-export interface QuestionRef { id: string; pointId: number; stage: Stage }
-interface QuestionCopy { prompt: string; hint: string; explanation: string; code?: string; sourceTable?: boolean }
+export interface QuestionRef { id: string; pointId: number; stage: Stage; revision?: string }
+interface QuestionCopy { prompt: string; hint: string; explanation: string; explanationHtml?: string; code?: string; sourceTable?: boolean }
 export type Exercise =
   | { kind: 'input'; answer: string | string[] }
   | { kind: 'choice'; options: string[]; answer: number }
@@ -32,16 +34,33 @@ export type InteractiveExercise = QuestionCopy & Exercise;
 export interface DrillQuestion {
   id: number;
   prompt: string;
+  /** Prompt with inline Markdown and blank spans pre-rendered at build time. */
+  promptHtml?: string;
+  /** Verbatim source span with {{…}} markers, kept for fidelity checks. */
+  quote?: string;
+  blankCount?: number;
   options: string[];
   answer: number;
   explanation: string;
+  /** Authored comment shown before the source excerpt. */
+  note?: string;
+  /** The source sentence/paragraph (or table/code block) containing the cloze. */
+  excerpt?: string;
+  excerptHtml?: string;
+  /** Explanation with the note and source excerpt pre-rendered at build time. */
+  explanationHtml?: string;
   legacyOptionMap: number[];
+  optionIds?: string[];
+  legacyOptionIds?: {1: string[]; 2: string[]};
+  legacyGrade?: {revision:string; correctId:string; correctLabel:string; retired?:Record<string,string>};
+  revision?: string;
   sourceTable?: boolean;
 }
 export interface Library {
   version: 1;
   title: string;
   standard: 'C23';
+  epoch: string;
   sourceHash: string;
   chapters: Chapter[];
   clusters: Cluster[];
@@ -64,7 +83,7 @@ export interface PointProgress {
 }
 export interface Grade { correct: boolean; assisted: boolean; skipped: boolean }
 export interface RoundAnswer extends Grade { questionId: string; pointId: number }
-export interface Attempt extends RoundAnswer { stage: Stage; time: number }
+export interface Attempt extends RoundAnswer { stage: Stage; time: number; revision?: string }
 export type AnswerValue = string | number | (number | null)[] | null;
 export interface Draft {
   value: AnswerValue;
@@ -92,16 +111,21 @@ export interface DrillRound {
   answers: Record<number, number>;
   finished: boolean;
   optionVersion: 2;
+  roundId?: string;
+  answerInfo?: Record<number, DrillAnswer>;
 }
 export interface Progress {
   schemaVersion: 1;
+  /** Question-bank epoch; absent means progress predates the current bank. */
+  epoch?: string;
   updatedAt: number;
   points: Record<number, PointProgress>;
   history: Attempt[];
   labs: Record<string, number>;
-  settings: { reduceMotion: boolean; textSize: number };
+  settings: { reduceMotion: boolean; textSize: number; mixMistakes?: boolean };
   session: Session | null;
   lastPoint: number | null;
   rounds: number;
   drill?: DrillRound | null;
+  drillAttempts?: DrillAttempt[];
 }
